@@ -1,0 +1,23 @@
+# Visual Studio / C++ 빌드 산출물
+bin/
+build/
+obj/
+*.exe
+*.obj
+*.pdb
+*.ilk
+.vs/
+*.user
+
+# 대용량 지리 및 영상 데이터 (100MB 초과 방지)
+*.tif
+*.tiff
+*.vrt
+*.bmp
+*.las
+*.laz
+
+# 대용량/임시 GIS 산출물 및 데이터셋
+*.kml
+*.png
+Resources/
