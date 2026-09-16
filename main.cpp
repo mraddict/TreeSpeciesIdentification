@@ -22,17 +22,11 @@ ExtractionResult mergeFeatures(const std::vector<ExtractionResult>& perCourse, c
 {
 	ExtractionResult merged;
 
-	for (size_t c = 0 ; c < perCourse.size() ; ++c)
+	for (auto& feat : perCourse)
 	{
-		const auto& f = perCourse[c];
-		long long offset = courseDSs[c].treeIdOffset;
-
-		// Deep copy all TreeFeature with offset applied
-		for (auto& tf : f.all)
+		for (auto& tf : feat.all)
 		{
-			TreeFeature copy = tf;
-			copy.treeId += offset;
-			merged.all.push_back(copy);
+			merged.all.push_back(tf);
 		}
 	}
 
@@ -118,7 +112,7 @@ int main()
 
 	//reprojectAerialPhoto("../../Resources/Diamond/DiamondCC_Orthomosic_BackGround.tif", "../../Resources/Diamond/DiamondCC_orthomosaic_5179_05cm.tif");
 
-	OutputLogger logger("../results", "log");
+	OutputLogger logger("results", "log");
 
 	std::string outputDir = ""; //"/labeled_trees_05";
 	std::string featureCSV = "/tree_features.csv";
@@ -241,12 +235,12 @@ int main()
 				// 5. Feature statistics
 				FeatureExtractor::printFeatureStats(features);
 
+				OverlayRenderer::saveOverlay(*pAerialImg, *pForest, *pTrees, course.outputDir + "/aerial_forest_tree_combined.png");
+
 				perCourseFeatures.push_back(std::move(courseFeatures));
 				perCourseAerial.push_back(std::move(pAerialImg));
 				perCourseForeset.push_back(std::move(pForest));
 				perCourseTrees.push_back(std::move(pTrees));
-
-				OverlayRenderer::saveOverlay(*pAerialImg, *pForest, *pTrees, outputDir + "/aerial_forest_tree_combined.png");
 			}
 
 			// Merge all features
@@ -305,84 +299,91 @@ int main()
 		// Save
 		HierarchicalClassifier::saveResults(results, hOpts.resultCsv);
 
-/*
-
-		
 		// Render overlay if requested
 		bool saveOverlay = true;
-		if (saveOverlay)
+		
+		// ─── Per-course overlay ───
+		if (saveOverlay && !perCourseAerial.empty())
 		{
-			if (aerialImgPath.empty() || SHPFiles.empty() || treeInfoPath.empty())
+			std::cout << "\n=== Rendering overlays per course ===\n";
+
+			// Build result lookup by treeId
+			std::map<long long, const HierarchicalResult*> resultMap;
+
+			for (auto& r : results)
 			{
-				std::cout << "\n  Overlay skipped: need --overlay-aerial, --overlay-forest, --overlay-tree\n";
+				resultMap[r.treeId] = &r;
 			}
-			else
+
+			size_t courseIdx = 0;
+
+			for (size_t ci = 0 ; ci < courseDSConfig.courses.size() ; ++ci)
 			{
-				std::cout << "\n=== Rendering overlay ===\n";
-
-				// 항공사진
-				if (!pAerialImg)
+				if (!courseDSConfig.courses[ci].enabled)
 				{
-					pAerialImg.reset(new AerialPhoto(AerialLoader::load(aerialImgPath)));
-				}
-				
-				// 임상도
-				if (!pForest)
-				{
-					pForest.reset(new ForestLayer(ForestLoader::loadMultiple(SHPFiles, "", false)));
-				}
-				
-				// 나무 CSV 로드 + 좌표 변환 (5186 → 5179)
-				if (!pTrees)
-				{
-					pTrees.reset(new TreeData(TreeLoader::load(treeInfoPath, 5186, 5179)));
+					continue;
 				}
 
-				if (!pAerialImg || !pForest || !pTrees)
+				if (courseIdx >= perCourseAerial.size())
 				{
-					std::cout << "  Overlay skipped: need aerial, forest, tree data\n"
-						<< "  Use --overlay-aerial, --overlay-forest, --overlay-tree\n";
+					break;
 				}
-				else
+
+				auto& course = courseDSConfig.courses[ci];
+				std::cout << "\n  Overlay: " << course.courseName << "\n";
+
+				// Collect results for this course
+				// All IDs already have offset from loading
+
+				std::vector<HierarchicalResult> courseResults;
+
+				for (auto& tf : perCourseFeatures[courseIdx].all)
 				{
-					OverlayOptions roOpts;
+					auto it = resultMap.find(tf.treeId);
 
-					roOpts.drawPolygons = true;
-					roOpts.polyAlpha = 0.15;
-
-					roOpts.drawLegend = true;
-					roOpts.polyLineWidth = 1;
-					roOpts.crownScale = 0.5;
-					roOpts.crownAlpha = 0.4;
-					roOpts.crownOutlineWidth = 1;
-
-					// Species overlay
-					std::string ovSpeciesPath = outputDir + "/result_species_overlay.png";
-					roOpts.resultTitle = "Predicted Species";
-					roOpts.resultColorMode = OverlayOptions::RESULT_BY_SPECIES;
-
-					OverlayRenderer::saveResultOverlay(*pAerialImg, *pForest, *pTrees, results, ovSpeciesPath, roOpts);
-
-					// Group overlay
-					std::string ovGroupPath = outputDir + "/result_group_overlay.png";
-					roOpts.resultTitle = "Predicted Group (C/D/E/N)";
-					roOpts.resultColorMode = OverlayOptions::RESULT_BY_GROUP;
-
-					OverlayRenderer::saveResultOverlay(*pAerialImg, *pForest, *pTrees, results, ovGroupPath, roOpts);
-
-					// Correctness overlay
-					std::string ovCorrPath = outputDir + "/result_correctness_overlay.png";
-					roOpts.resultTitle = "Correctness";
-					roOpts.resultColorMode = OverlayOptions::RESULT_CORRECTNESS;
-
-					OverlayRenderer::saveResultOverlay(*pAerialImg, *pForest, *pTrees, results, ovCorrPath, roOpts);
+					if (it != resultMap.end())
+					{
+						courseResults.push_back(*it->second);
+					}
 				}
-				
+
+				OverlayOptions roOpts;
+
+				roOpts.drawPolygons = true;
+				roOpts.polyAlpha = 0.15;
+
+				roOpts.drawLegend = true;
+				roOpts.polyLineWidth = 1;
+				roOpts.crownScale = 2;//0.5;
+				roOpts.crownAlpha = 0.4;
+				roOpts.crownOutlineWidth = 1;
+
+				// Species overlay
+				std::string ovSpeciesPath = course.outputDir + "/result_species_overlay.png";
+				roOpts.resultTitle = course.courseName + " - Predicted Species";
+				roOpts.resultColorMode = OverlayOptions::RESULT_BY_SPECIES;
+
+				OverlayRenderer::saveResultOverlay(*perCourseAerial[courseIdx], *perCourseForeset[courseIdx], *perCourseTrees[courseIdx], courseResults, ovSpeciesPath, roOpts);
+
+				// Group overlay
+				std::string ovGroupPath = course.outputDir + "/result_group_overlay.png";
+				roOpts.resultTitle = course.courseName + "Predicted Group (C/D/E/N)";
+				roOpts.resultColorMode = OverlayOptions::RESULT_BY_GROUP;
+
+				OverlayRenderer::saveResultOverlay(*perCourseAerial[courseIdx], *perCourseForeset[courseIdx], *perCourseTrees[courseIdx], courseResults, ovGroupPath, roOpts);
+
+				// Correctness overlay
+				std::string ovCorrPath = course.outputDir + "/result_correctness_overlay.png";
+				roOpts.resultTitle = course.courseName + "Correctness";
+				roOpts.resultColorMode = OverlayOptions::RESULT_CORRECTNESS;
+
+				OverlayRenderer::saveResultOverlay(*perCourseAerial[courseIdx], *perCourseForeset[courseIdx], *perCourseTrees[courseIdx], courseResults, ovCorrPath, roOpts);
+
+				++courseIdx;
 			}
 		}
 
 		std::cout << "\n=== Done ===\n";
-*/
 	}
 	catch (const std::exception& e)
 	{
