@@ -72,7 +72,7 @@ public:
 
 		if (sep != std::string::npos)
 		{
-			mkdirsInternal(logPath.substr(1, sep));
+			mkdirsInternal(logPath.substr(0, sep));
 		}
 
 		file_.open(logPath);

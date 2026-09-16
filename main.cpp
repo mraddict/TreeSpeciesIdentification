@@ -5,6 +5,8 @@
 #include "ForestLoader.h"
 #include "TreeLoader.h"
 */
+#include "CourseDataSetLoader.h"
+
 #include "OverlayRenderer.h"
 #include "TreeLabeler.h"
 #include "FeatureExtractor.h"
@@ -13,18 +15,123 @@
 #include "Hierarchicalclassifier.h"
 #include "OutputLogger.h"
 
+#include "AerialReproject.h"
+
+// ─── Merge features from multiple courses ───
+ExtractionResult mergeFeatures(const std::vector<ExtractionResult>& perCourse, const std::vector<CourseDataSet>& courseDSs)
+{
+	ExtractionResult merged;
+
+	for (size_t c = 0 ; c < perCourse.size() ; ++c)
+	{
+		const auto& f = perCourse[c];
+		long long offset = courseDSs[c].treeIdOffset;
+
+		// Deep copy all TreeFeature with offset applied
+		for (auto& tf : f.all)
+		{
+			TreeFeature copy = tf;
+			copy.treeId += offset;
+			merged.all.push_back(copy);
+		}
+	}
+
+	// Rebuild train/predict pointers
+	for (auto& tf : merged.all)
+	{
+		if (tf.insideForest && tf.reliable)
+		{
+			merged.train.push_back(&tf);
+		}
+		else if (!tf.insideForest)
+		{
+			merged.predict.push_back(&tf);
+		}
+	}
+
+	return merged;
+}
+
+// ─── Save merged features CSV with CourseID column ───
+void saveMergedCSV(const std::vector<ExtractionResult>& perCourse, const std::vector<CourseDataSet>& courseDSs, const std::string& path)
+{
+	std::ofstream out(path);
+
+	out << "CourseID,TreeID,InsideForest,Reliable,DistToEdge,ImagePath,"
+		<< "SpeciesCode,SpeciesName,"
+		<< "B_mean,G_mean,R_mean,B_std,G_std,R_std,"
+		<< "H_mean,S_mean,V_mean,Contrast,Entropy,"
+		<< "LBP_mean,LBP_std,GLCM_energy,GLCM_corr,GLCM_homo,GLCM_dissim,"
+		<< "Height,CrownD,H_CrownD\n";
+
+	for (size_t c = 0 ; c < perCourse.size() ; ++c)
+	{
+		long long offset = courseDSs[c].treeIdOffset;
+
+		for (auto& tf : perCourse[c].all)
+		{
+			out << courseDSs[c].courseName << ","
+				<< (tf.treeId + offset) << ","
+				<< (tf.insideForest ? "Y" : "N") << ","
+				<< (tf.reliable ? "Y" : "N") << ","
+				<< std::fixed << std::setprecision(2) << tf.distToEdge << ","
+				<< tf.imagePath << ","
+				<< tf.speciesCode << ","
+				<< tf.speciesName << ",";
+
+			for (size_t f = 0 ; f < tf.feature.size() ; ++f)
+			{
+				if (f > 0)
+				{
+					out << ",";
+				}
+
+				out << std::fixed << std::setprecision(4) << tf.feature[f];
+			}
+
+			out << "\n";
+		}
+	}
+
+	std::cout << "  Merged features saved: " << path << "\n";
+}
+
+void reprojectAerialPhoto(const std::string& srcPath, const std::string& dstPath)
+{
+	ReprojectOptions opts;
+	opts.srcEpsg = 32652;		// 원본: WGS84 UTM 52N
+	opts.dstEpsg = 5179;		// 대상: UTM-K GRS80
+	opts.dstResX = 0.05;		// 5cm로 리샘플링 (3cm → 5cm)
+	opts.dstResY = 0.05;
+	opts.numThreads = 4;
+	opts.memoryLimit = 1024;  // 13GB 이미지이니 메모리 넉넉히}
+
+	auto report = AerialReproject::reproject(srcPath, dstPath, opts);
+
+	AerialReproject::printReport(report);
+}
+
 int main()
 {
-	TSICommon::initialize();
+ 	TSICommon::initialize();
 	ForestCommon::initialize();
 
-	OutputLogger logger("results", "log");
+	//reprojectAerialPhoto("../../Resources/Diamond/DiamondCC_Orthomosic_BackGround.tif", "../../Resources/Diamond/DiamondCC_orthomosaic_5179_05cm.tif");
 
-	std::string outputDir = "./labeled_trees_05";
+	OutputLogger logger("../results", "log");
+
+	std::string outputDir = ""; //"/labeled_trees_05";
+	std::string featureCSV = "/tree_features.csv";
+	std::string mergedFeatureCSV = "/merged_tree_features.csv";
+	std::string modelDir = "/species_model";
+	std::string modelCSV = "/species_result.csv";
+	/*
 	std::string featureCSV = outputDir + "/tree_features.csv";
+	std::string mergedFeatureCSV = outputDir + "/merged_tree_features.csv";
 	std::string modelDir = outputDir + "/species_model";
 	std::string modelCSV = modelDir + "/species_result.csv";
-
+*/
+	 
 	_mkdir(outputDir.c_str());
 
 	// 항공사진
@@ -44,11 +151,15 @@ int main()
 	// 나무위치
 	std::string treeInfoPath = "../../Resources/AnseongW/tree_info.csv";
 
+	std::string courseDataSetConfigFilename = "../../Resources/courses_dataset.json";
+	CourseDataSetConfig courseDSConfig = CourseDataSetConfigLoader::load(courseDataSetConfigFilename);
+
 	bool resumeFeature = false;
 
-	std::unique_ptr<AerialPhoto> pAerialImg;
-	std::unique_ptr<ForestLayer> pForest;
-	std::unique_ptr<TreeData> pTrees;
+	std::vector<ExtractionResult> perCourseFeatures;
+	std::vector<std::unique_ptr<AerialPhoto>> perCourseAerial;
+	std::vector<std::unique_ptr<ForestLayer>> perCourseForeset;
+	std::vector<std::unique_ptr<TreeData>> perCourseTrees;
 
 	try
 	{
@@ -61,45 +172,108 @@ int main()
 		}
 		else
 		{
-			// 1. Load data
-	
-			// 항공사진
-			pAerialImg.reset(new AerialPhoto(AerialLoader::load(aerialImgPath)));
-			// 메타데이터 출력
-			AerialLoader::printInfo(*pAerialImg);
+			for (auto& course : courseDSConfig.courses)
+			{
+				std::unique_ptr<AerialPhoto> pAerialImg;
+				std::unique_ptr<ForestLayer> pForest;
+				std::unique_ptr<TreeData> pTrees;				
 
-			// 임상도
-			pForest.reset(new ForestLayer(ForestLoader::loadMultiple(SHPFiles, "", false)));
-			// 메타데이터 출력
-			ForestLoader::printInfo(*pForest);
+				if (!course.enabled)
+				{
+					std::cout << "\n=== Skipping " << course.courseName << " (disabled) ===\n";
 
-			// 나무 CSV 로드 + 좌표 변환 (5186 → 5179)
-			pTrees.reset(new TreeData(TreeLoader::load(treeInfoPath, 5186, 5179)));
-			// 메타데이터 출력
-			TreeLoader::printInfo(*pTrees);
+					continue;
+				}
 
-			OverlayRenderer::saveOverlay(*pAerialImg, *pForest, *pTrees, outputDir + "/aerial_forest_tree_combined.png");
+				std::cout << "\n========================================\n";
+				std::cout << "  Processing: " << course.courseName << "\n";
+				std::cout << "========================================\n";
 
-			// 2. Label trees
+				// 1. Load data
 
-			LabelOptions labelOpts;
+				// 항공사진
+				std::cout << "\n=== Loading aerial ===\n";
+				//auto pAerialImg = std::make_unique<AerialPhoto>(AerialLoader::load(course.aerialImgPath));
+				pAerialImg.reset(new AerialPhoto(AerialLoader::load(course.aerialImgPath)));
+				// 메타데이터 출력
+				AerialLoader::printInfo(*pAerialImg);
 
-			labelOpts.outputDir = outputDir;
-			labelOpts.aerialCrsEpsg = pAerialImg->epsg;
-			labelOpts.forestCrsEpsg = pForest->epsg;
+				// 임상도
+				std::cout << "\n=== Loading forest ===\n";
+				pForest.reset(new ForestLayer(ForestLoader::loadMultiple(course.shpFiles, "", false)));
+				// 메타데이터 출력
+				ForestLoader::printInfo(*pForest);
 
-			auto result = TreeLabeler::label(*pAerialImg, *pForest, *pTrees, labelOpts);
+				// 나무 CSV 로드 + 좌표 변환
+				pTrees.reset(new TreeData(TreeLoader::load(course.treeInfoPath, course.treeSrcEPSG, course.targetEPSG)));
 
-			// 3. Extract features
-			std::cout << "\n";
+				// Apply ID offset
+				pTrees->treeIdOffset = course.treeIdOffset;
 
-			features = FeatureExtractor::extractFromFiles(result);
+				for (auto& tp : pTrees->tps)
+				{
+					tp.treeId += course.treeIdOffset;
+				}
+				
+				// 메타데이터 출력
+				TreeLoader::printInfo(*pTrees);
 
-			// 4. Save feature CSV
-			FeatureExtractor::saveCSV(features, featureCSV);
+				// 2. Label trees
+				TSICommon::mkdirs(course.outputDir);
 
-			// 5. Feature statistics
-			FeatureExtractor::printFeatureStats(features);
+				LabelOptions labelOpts;
+
+				labelOpts.outputDir = course.outputDir;
+				labelOpts.aerialCrsEpsg = pAerialImg->epsg;
+				labelOpts.forestCrsEpsg = pForest->epsg;
+
+				std::cout << "\n=== Labeling ===\n";
+				auto labeled = TreeLabeler::label(*pAerialImg, *pForest, *pTrees, labelOpts);
+
+				// 3. Extract features
+				std::cout << "\n=== Extracting features ===\n";
+				ExtractionResult courseFeatures = FeatureExtractor::extractFromFiles(labeled);
+				//features = FeatureExtractor::extractFromAerialImage(labeled, *pAerialImg);
+
+				// 4. Save feature CSV
+				FeatureExtractor::saveCSV(courseFeatures, course.outputDir + featureCSV);
+
+				// 5. Feature statistics
+				FeatureExtractor::printFeatureStats(features);
+
+				perCourseFeatures.push_back(std::move(courseFeatures));
+				perCourseAerial.push_back(std::move(pAerialImg));
+				perCourseForeset.push_back(std::move(pForest));
+				perCourseTrees.push_back(std::move(pTrees));
+
+				OverlayRenderer::saveOverlay(*pAerialImg, *pForest, *pTrees, outputDir + "/aerial_forest_tree_combined.png");
+			}
+
+			// Merge all features
+			std::cout << "\n========================================\n";
+			std::cout << "  Merging " << perCourseFeatures.size() << " datasets\n";
+			std::cout << "========================================\n";
+
+			// Get enabled configs for merge
+			std::vector<CourseDataSet> enabledDSs;
+
+			for (auto& c : courseDSConfig.courses)
+			{
+				if (c.enabled)
+				{
+					enabledDSs.push_back(c);
+				}
+			}
+
+			features = mergeFeatures(perCourseFeatures, enabledDSs);
+
+			std::cout << "  Total trees: " << features.all.size() << "\n";
+			std::cout << "  Train pool:  " << features.train.size() << "\n";
+			std::cout << "  Predict:     " << features.predict.size() << "\n";
+
+			// Save merged CSV
+			TSICommon::mkdirs(courseDSConfig.outputDir);
+			saveMergedCSV(perCourseFeatures, enabledDSs, courseDSConfig.outputDir + mergedFeatureCSV);
 		}
 
 /*
@@ -113,12 +287,11 @@ int main()
 
 		auto classifier = RefinedClassifier::run(features, refOpts);
 */
-
 		HierarchicalOptions hOpts;
 		hOpts.selfTraining = false;
 		//hOpts.maxRemoveRatio = 0.3;
-		hOpts.resultCsv = outputDir + "/hierarchical_result.csv";
-		
+		hOpts.resultCsv = courseDSConfig.outputDir + "/hierarchical_result.csv";
+
 		// Train hierarchical classifier
 		HierarchicalClassifier hClf;
 		hClf.train(features, hOpts);
@@ -131,6 +304,8 @@ int main()
 
 		// Save
 		HierarchicalClassifier::saveResults(results, hOpts.resultCsv);
+
+/*
 
 		
 		// Render overlay if requested
@@ -207,6 +382,7 @@ int main()
 		}
 
 		std::cout << "\n=== Done ===\n";
+*/
 	}
 	catch (const std::exception& e)
 	{

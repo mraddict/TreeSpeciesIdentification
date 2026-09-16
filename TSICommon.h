@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <filesystem>
 #include <numeric>
 #include <random>
@@ -185,5 +186,222 @@ public:
 	static std::string join(const std::string& a, const std::string& b, const std::string& c)
 	{
 		return join(join(a, b), c);
+	}
+
+	static std::string trim(const std::string& s)
+	{
+		size_t start = s.find_first_not_of(" \t\r\n");
+
+		if (start == std::string::npos)
+		{
+			return "";
+		}
+
+		size_t end = s.find_last_not_of(" \t\r\n");
+
+		return s.substr(start, end - start + 1);
+	}
+
+	static size_t findMatchingBracket(const std::string& s, size_t start, char open, char close)
+	{
+		if ((start == std::string::npos) || (s[start] != open))
+		{
+			return std::string::npos;
+		}
+
+		int depth = 1;
+		bool inString = false;
+
+		for (size_t i = start + 1 ; i < s.size() ; ++i)
+		{
+			if ((s[i] == '"') && (i == 0 || s[i - 1] != '\\'))
+			{
+				inString = !inString;
+			}
+
+			if (inString)
+			{
+				continue;
+			}
+
+			if (s[i] == open)
+			{
+				++depth;
+			}
+
+			if (s[i] == close)
+			{
+				--depth;
+			}
+
+			if (depth == 0)
+			{
+				return i;
+			}
+		}
+
+		return std::string::npos;
+	}
+
+	// json
+
+	// Extract a string value: "key": "value"
+	static std::string extractString(const std::string& json, const std::string& key)
+	{
+		std::string search = "\"" + key + "\"";
+		size_t pos = json.find(search);
+
+		if (pos == std::string::npos)
+		{
+			return "";
+		}
+
+		// Find the colon after the key
+		size_t colon = json.find(':', pos + search.size());
+
+		if (colon == std::string::npos)
+		{
+			return "";
+		}
+
+		// Find the opening quote of the value
+		size_t qStart = json.find('"', colon + 1);
+
+		if (qStart == std::string::npos)
+		{
+			return "";
+		}
+
+		size_t qEnd = json.find('"', qStart + 1);
+
+		if (qEnd == std::string::npos)
+		{
+			return "";
+		}
+
+		return json.substr(qStart + 1, qEnd - qStart - 1);
+	}
+
+	// Extract a number value: "key": 123
+	static double extractNumber(const std::string& json, const std::string& key, double defaultVal = 0)
+	{
+		std::string search = "\"" + key + "\"";
+		size_t pos = json.find(search);
+
+		if (pos == std::string::npos)
+		{
+			return defaultVal;
+		}
+
+		size_t colon = json.find(':', pos + search.size());
+
+		if (colon == std::string::npos)
+		{
+			return defaultVal;
+		}
+
+		// Skip whitespace after colon
+		size_t numStart = json.find_first_not_of(" \t\r\n", colon + 1);
+
+		if (numStart == std::string::npos)
+		{
+			return defaultVal;
+		}
+
+		try
+		{
+			return std::stod(json.substr(numStart));
+		}
+		catch (...)
+		{
+			return defaultVal;
+		}
+	}
+
+	// Extract a bool value: "key": true
+	static bool extractBool(const std::string& json, const std::string& key, bool defaultVal = true)
+	{
+		std::string search = "\"" + key + "\"";
+		size_t pos = json.find(search);
+	
+		if (pos == std::string::npos)
+		{
+			return defaultVal;
+		}
+
+		size_t colon = json.find(':', pos + search.size());
+
+		if (colon == std::string::npos)
+		{
+			return defaultVal;
+		}
+
+		size_t valStart = json.find_first_not_of(" \t\r\n", colon + 1);
+
+		if (valStart == std::string::npos)
+		{
+			return defaultVal;
+		}
+
+		if (json.substr(valStart, 4) == "true")
+		{
+			return true;
+		}
+
+		if (json.substr(valStart, 5) == "false")
+		{
+			return false;
+		}
+
+		return defaultVal;
+	}
+
+	// Extract a string array: "key": ["a", "b", "c"]
+	static std::vector<std::string> extractStringArray(const std::string& json, const std::string& key)
+	{
+		std::vector<std::string> result;
+
+		std::string search = "\"" + key + "\"";
+		size_t pos = json.find(search);
+
+		if (pos == std::string::npos)
+		{
+			return result;
+		}
+
+		size_t arrStart = json.find('[', pos);
+		size_t arrEnd = findMatchingBracket(json, arrStart, '[', ']');
+
+		if (arrStart == std::string::npos || arrEnd == std::string::npos)
+		{
+			return result;
+		}
+
+		std::string arr = json.substr(arrStart + 1, arrEnd - arrStart - 1);
+
+		// Extract each quoted string
+		size_t p = 0;
+
+		while (p < arr.size())
+		{
+			size_t qStart = arr.find('"', p);
+
+			if (qStart == std::string::npos)
+			{
+				break;
+			}
+
+			size_t qEnd = arr.find('"', qStart + 1);
+
+			if (qEnd == std::string::npos)
+			{
+				break;
+			}
+
+			result.push_back(arr.substr(qStart + 1, qEnd - qStart - 1));
+			p = qEnd + 1;
+		}
+
+		return result;
 	}
 };

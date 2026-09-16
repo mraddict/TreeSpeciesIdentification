@@ -23,7 +23,8 @@ struct TreePoint
 // ─────────────────────────────────────────────
 struct TreeData
 {
-	std::vector<TreePoint> tps;
+	std::vector<TreePoint> tps;		// tree
+	long long treeIdOffset = 0;		// 코스별 TreeID 중복 제거
 
 	// 범위
 	OGREnvelope extent = {};
@@ -82,14 +83,14 @@ public:
 		auto colMap = buildColumnMap(data.headers);
 
 		int colTreeId = getCol(colMap, { "TreeID", "treeID", "treeid", "TREEID" });
-		int colX = getCol(colMap, { "TreeLocationX", "X", "x", "LocationX" });
-		int colY = getCol(colMap, { "TreeLocationY", "Y", "y", "LocationY" });
+		int colX = getCol(colMap, { "TreeLocationX", "X", "x", "LocationX", "TreePosX(meter)" });
+		int colY = getCol(colMap, { "TreeLocationY", "Y", "y", "LocationY", "TreePosY(meter)" });
 		int colHeight = getCol(colMap, { "TreeHeight(metre)", "TreeHeight", "Height", "height" });
-		int colCrownD = getCol(colMap, { "CrownDiameter(metre)", "CrownDiameter", "CrownD" });
-		int colCrownSN = getCol(colMap, { "CrownDiameter(S-N)(metre)", "CrownDiameter_SN" });
-		int colCrownEW = getCol(colMap, { "CrownDiameter(E-W)(metre)", "CrownDiameter_EW" });
-		int colArea = getCol(colMap, { "CrownArea(square metre)", "CrownArea" });
-		int colVol = getCol(colMap, { "CrownVolume(cubic metre)", "CrownVolume" });
+		int colCrownD = getCol(colMap, { "CrownDiameter(metre)", "CrownDiameter", "CrownD", "Crown Diameter(meter)" });
+		int colCrownSN = getCol(colMap, { "CrownDiameter(S-N)(metre)", "CrownDiameter_SN", "Crown Diameter(S-N)(meter)" });
+		int colCrownEW = getCol(colMap, { "CrownDiameter(E-W)(metre)", "CrownDiameter_EW", "Crown Diameter(E-W)(meter)" });
+		int colArea = getCol(colMap, { "CrownArea(square metre)", "CrownArea", "Crown Area(square meter)" });
+		int colVol = getCol(colMap, { "CrownVolume(cubic metre)", "CrownVolume", "Crown Volume(cubic meter)" });
 		int colOldId = getCol(colMap, { "OldID", "oldID", "OldId" });
 
 		if ((colX < 0) || (colY < 0))
