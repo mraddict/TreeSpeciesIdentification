@@ -44,7 +44,7 @@ int main()
 	// 나무위치
 	std::string treeInfoPath = "../../Resources/AnseongW/tree_info.csv";
 
-	bool resumeFeature = true;
+	bool resumeFeature = false;
 
 	std::unique_ptr<AerialPhoto> pAerialImg;
 	std::unique_ptr<ForestLayer> pForest;
