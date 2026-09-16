@@ -2,6 +2,7 @@
 bin/
 build/
 obj/
+x64/
 *.exe
 *.obj
 *.pdb
