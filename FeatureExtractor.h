@@ -1,11 +1,11 @@
-#pragma once
+ï»¿#pragma once
 
-// ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //  FeatureExtractor.h
 //  Crown image feature extraction for species classification
 //
 //  Input:  LabeledTree results from TreeLabeler
-//  Output: Feature vectors (14-dim) for each tree
+//  Output: Feature vectors (25-dim) for each tree
 //
 //  Feature vector layout (20 dimensions):
 //    [0]  B_mean       - Blue channel mean
@@ -28,7 +28,11 @@
 //    [17] Height       - Tree height (m, from LiDAR)
 //    [18] CrownD       - Crown diameter (m, from LiDAR)
 //    [19] H_CrownD     - Height / CrownD ratio
-// 
+//    [20] ìˆ˜ê´€ ë¹„ëŒ€ì¹­ë„ â€” ë‚¨ë¶/ë™ì„œ ì§ê²½ ë¹„ìœ¨
+//    [21] ìˆ˜ê´€ ì¶©ì‹¤ë„ â€” ì‹¤ì œ ë©´ì  / ì›í˜• ê°€ì • ë©´ì 
+//    [22] ìˆ˜ê´€ ë°€ë„ â€” ì²´ì  / ë©´ì 
+//    [23] ìˆ˜ê´€ êµ¬í˜•ë„ â€” ì²´ì  / (ì§ê²½Â³)
+//    [24] ìˆ˜ê´€ ë©´ì  ëŒ€ë¹„ ìˆ˜ê³  â€” ë©´ì  / ìˆ˜ê³ 
 //  Dependencies:
 //    - TreeLabeler.h (LabeledTree)
 //    - OpenCV
@@ -37,13 +41,13 @@
 //    g++ -std=c++17 -O2 -o feature_extract main_feature_extract.cpp \
 //        $(gdal-config --cflags --libs) \
 //        $(pkg-config --cflags --libs opencv4)
-// ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #include "TreeLabeler.h"
 
-// ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //  Feature vector for a single tree
-// ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 struct TreeFeature
 {
@@ -51,11 +55,11 @@ struct TreeFeature
 	std::string speciesCode;				// KOFTR_GROU(empty if outside forest)
 	std::string speciesName;				// KOFTR_NM
 	bool insideForest = false;
-	bool reliable = false;					// inside forest + far from edge. Æú¸®°ï °æ°è¿¡¼­ ÃæºĞÈ÷ ¾ÈÂÊ
+	bool reliable = false;					// inside forest + far from edge. í´ë¦¬ê³¤ ê²½ê³„ì—ì„œ ì¶©ë¶„íˆ ì•ˆìª½
 	bool imageUsable = false;			// not rejected by empty check
 	double distToEdge = 0.0;				// distance to polygon boundary (m)
 	std::string imagePath;					// saved crop image path
-	std::vector<float> feature;			// feature vector (14-dim)
+	std::vector<float> feature;			// feature vector
 
 	// Feature names (static, for CSV header)
 	static const std::vector<std::string>& featureNames()
@@ -68,16 +72,17 @@ struct TreeFeature
 			"Contrast", "Entropy",
 			"LBP_mean", "LBP_std",
 			"GLCM_energy", "GLCM_corr", "GLCM_homo", "GLCM_dissim",
-			"Height", "CrownD", "H_CrownD"
+			"Height", "CrownD", "H_CrownD",
+			"CrownAsym", "CrownCompact", "CrownDensity", "CrownSpher", "AreaPerH"
 		};
 
 		return names;
 	}
 };
 
-// ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //  Extraction result summary
-// ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 struct ExtractionResult
 {
@@ -93,7 +98,7 @@ class FeatureExtractor
 {
 public:
 
-	// ¦¡¦¡¦¡ Extract from saved crop images (reads from disk) ¦¡¦¡¦¡
+	// â”€â”€â”€ Extract from saved crop images (reads from disk) â”€â”€â”€
 	static ExtractionResult extractFromFiles(const std::vector<LabeledTree>& labeledTrees)
 	{
 		std::cout << "=== Feature Extraction (from saved images) ===\n";
@@ -171,7 +176,7 @@ public:
 		return result;
 	}
 
-	// ¦¡¦¡¦¡ Extract directly from aerial image (no disk I/O) ¦¡¦¡¦¡
+	// â”€â”€â”€ Extract directly from aerial image (no disk I/O) â”€â”€â”€
 	static ExtractionResult extractFromAerialImage(const std::vector<LabeledTree>& labeledTrees, const AerialPhoto& aerialImg)
 	{
 		std::cout << "=== Feature Extraction (from aerial image) ===\n";
@@ -243,7 +248,7 @@ public:
 		return result;
 	}
 
-	// ¦¡¦¡¦¡ Load features from CSV (resume from step 3) ¦¡¦¡¦¡
+	// â”€â”€â”€ Load features from CSV (resume from step 3) â”€â”€â”€
 	static ExtractionResult loadCSV(const std::string& path)
 	{
 		std::cout << "=== Loading features from CSV ===\n";
@@ -353,7 +358,7 @@ public:
 		return result;
 	}
 
-	// ¦¡¦¡¦¡ Save features to CSV ¦¡¦¡¦¡
+	// â”€â”€â”€ Save features to CSV â”€â”€â”€
 	static void saveCSV(const ExtractionResult& result, const std::string& outPath)
 	{
 		std::ofstream out(outPath);
@@ -393,7 +398,7 @@ public:
 
 			for (size_t i = 0 ; i < tf.feature.size() ; ++i)
 			{
-				// LiDAR features (17,18,19) with 2 decimals, others with 4
+				// LiDAR features (17~) with 2 decimals, others with 4
 				if (i >= 17)
 				{
 					out << "," << std::setprecision(2) << tf.feature[i];
@@ -412,7 +417,7 @@ public:
 		std::cout << "  Feature CSV saved: " << outPath << " (" << result.all.size() << " rows)\n";
 	}
 
-	// ¦¡¦¡¦¡ Print feature importance summary ¦¡¦¡¦¡
+	// â”€â”€â”€ Print feature importance summary â”€â”€â”€
 	static void printFeatureStats(const ExtractionResult& result)
 	{
 		if (result.train.empty())
@@ -517,14 +522,14 @@ public:
 
 private:
 
-	// ¦¡¦¡¦¡ Feature computation (20 dimensions) ¦¡¦¡¦¡
+	// â”€â”€â”€ Feature computation (25 dimensions) â”€â”€â”€
 
 	static std::vector<float> computeFeature(const cv::Mat& crop, const TreePoint& tp)
 	{
 		std::vector<float> f;
 		f.reserve(20);
 
-		// BGR Åë°è
+		// BGR í†µê³„
 		// [0-5] BGR mean & stddev
 
 		cv::Scalar mean;
@@ -559,7 +564,7 @@ private:
 		gray.convertTo(grayF, CV_32F);
 
 		// [9] Texture contrast (Sobel gradient magnitude mean)
-		// ´ëÁ¶µµ: ÀÎÁ¢ ÇÈ¼¿ Â÷ÀÇ Á¦°ö Æò±Õ
+		// ëŒ€ì¡°ë„: ì¸ì ‘ í”½ì…€ ì°¨ì˜ ì œê³± í‰ê· 
 
 		cv::Mat dx;
 		cv::Mat dy;
@@ -574,7 +579,7 @@ private:
 		f.push_back((float)contract[0]);				// Contrast
 
 		// [10] Texture entropy (grayscale histogram)
-		// ±ÕÀÏ¼º: È÷½ºÅä±×·¥ ¿£Æ®·ÎÇÇ
+		// ê· ì¼ì„±: íˆìŠ¤í† ê·¸ë¨ ì—”íŠ¸ë¡œí”¼
 
 		cv::Mat grayU8;
 		grayF.convertTo(grayU8, CV_8U);
@@ -632,10 +637,47 @@ private:
 		f.push_back((float)tp.crownD);																	// CrownD
 		f.push_back((tp.crownD > 0.0) ? (float)(tp.height / tp.crownD) : 0.0f);		// H/CrownD ratio
 
-		return f;		// ÃÑ 14Â÷¿ø
+		// [20] ìˆ˜ê´€ ë¹„ëŒ€ì¹­ë„ â€” ë‚¨ë¶/ë™ì„œ ì§ê²½ ë¹„ìœ¨
+		//   ì›í˜•ì´ë©´ 1.0, íƒ€ì›í˜•ì´ë©´ 1ì—ì„œ ë²—ì–´ë‚¨
+		//   í¬í”ŒëŸ¬ëŠ” ì¢ê³  ê¸¸ì–´ì„œ ë¹„ëŒ€ì¹­ì´ í¼
+		//   ì´¬ì˜ ì¡°ê±´ ë¬´ê´€: LiDAR êµ¬ì¡° ì •ë³´
+		float crownAsymmetry = (tp.crownDEW > 0.0) ? (float)(tp.crownDSN / tp.crownDEW) : 1.0f;
+		f.push_back(crownAsymmetry);
+
+		// [21] ìˆ˜ê´€ ì¶©ì‹¤ë„ â€” ì‹¤ì œ ë©´ì  / ì›í˜• ê°€ì • ë©´ì 
+		//   ì›í˜• ìˆ˜ê´€ì´ë©´ Ï€/4 â‰ˆ 0.785
+		//   ë¶ˆê·œì¹™í•˜ë©´ ë‚®ê³ , ë¹½ë¹½í•˜ë©´ ë†’ìŒ
+		//   ìˆ˜ê´€ ì™¸ê³½ í˜•íƒœë¥¼ ë°˜ì˜
+		//   ì´¬ì˜ ì¡°ê±´ ë¬´ê´€: LiDAR êµ¬ì¡° ì •ë³´
+		float crownCompact = (tp.crownD > 0.0) ? (float)(tp.crownArea / (tp.crownD * tp.crownD)) : 0.0f;
+		f.push_back(crownCompact);
+
+		// [22] ìˆ˜ê´€ ë°€ë„ â€” ì²´ì  / ë©´ì 
+		//   ìˆ˜ê´€ì´ ë†’ê²Œ ì†Ÿì•„ìˆìœ¼ë©´ ë°€ë„ê°€ ë†’ê³ 
+		//   ë‚©ì‘í•˜ê²Œ í¼ì ¸ìˆìœ¼ë©´ ë‚®ìŒ
+		//   ì¹¨ì—½ìˆ˜(ì›ì¶”í˜•)ëŠ” ë†’ê³ , í™œì—½ìˆ˜(ìš°ì‚°í˜•)ëŠ” ë‚®ìŒ
+		//   ì´¬ì˜ ì¡°ê±´ ë¬´ê´€: LiDAR êµ¬ì¡° ì •ë³´
+		float crownDensity = (tp.crownArea > 0.0) ? (float)(tp.crownVol / tp.crownArea) : 0.0f;
+		f.push_back(crownDensity);
+
+		// [23] ìˆ˜ê´€ êµ¬í˜•ë„ â€” ì²´ì  / (ì§ê²½Â³)
+		//   ìˆ˜ê´€ì´ êµ¬í˜•ì— ê°€ê¹Œìš°ë©´ ë†’ê³ 
+		//   ë‚©ì‘í•˜ê±°ë‚˜ ê¸¸ì­‰í•˜ë©´ ë‚®ìŒ
+		//   ì´¬ì˜ ì¡°ê±´ ë¬´ê´€: LiDAR êµ¬ì¡° ì •ë³´
+		float crownSphericity = (tp.crownD > 0.0) ? (float)(tp.crownVol / (tp.crownD * tp.crownD * tp.crownD)) : 0.0f;
+		f.push_back(crownSphericity);
+
+		// [24] ìˆ˜ê´€ ë©´ì  ëŒ€ë¹„ ìˆ˜ê³  â€” ë©´ì  / ìˆ˜ê³ 
+		//   í‚¤ ëŒ€ë¹„ ìˆ˜ê´€ì´ ë„“ìœ¼ë©´ ë†’ê³  (ìš°ì‚°í˜• í™œì—½ìˆ˜)
+		//   í‚¤ ëŒ€ë¹„ ìˆ˜ê´€ì´ ì¢ìœ¼ë©´ ë‚®ìŒ (ì›ì¶”í˜• ì¹¨ì—½ìˆ˜)
+		//   ì´¬ì˜ ì¡°ê±´ ë¬´ê´€: LiDAR êµ¬ì¡° ì •ë³´
+		float crownAreaPerH = (tp.height > 0.0) ? (float)(tp.crownArea / tp.height) : 0.0f;
+		f.push_back(crownAreaPerH);
+		
+		return f;		// ì´ 25ì°¨ì›
 	}
 
-	// ¦¡¦¡¦¡ LBP computation ¦¡¦¡¦¡
+	// â”€â”€â”€ LBP computation â”€â”€â”€
 	// 8-neighbor Local Binary Pattern
 	static cv::Mat computeLBP(const cv::Mat& gray)
 	{
@@ -679,7 +721,7 @@ private:
 		return lbp;
 	}
 
-	// ¦¡¦¡¦¡ GLCM computation ¦¡¦¡¦¡
+	// â”€â”€â”€ GLCM computation â”€â”€â”€
 	// Gray-Level Co-occurrence Matrix at distance=1, angle=0 (horizontal)
 	static void computeGLCM(const cv::Mat& gray, float& energy, float& correlation, float& homogeneity, float& dissimilarity)
 	{
@@ -782,7 +824,7 @@ private:
 	}
 
 
-	// ¦¡¦¡¦¡ Categorize into train/predict ¦¡¦¡¦¡
+	// â”€â”€â”€ Categorize into train/predict â”€â”€â”€
 	static void categorize(ExtractionResult& result)
 	{
 		for (auto& tf : result.all)
@@ -798,7 +840,7 @@ private:
 		}
 	}
 
-	// ¦¡¦¡¦¡ Print summary ¦¡¦¡¦¡
+	// â”€â”€â”€ Print summary â”€â”€â”€
 	static void printSummary(const ExtractionResult& result)
 	{
 		std::cout << "\n  === Feature Extraction Summary ===\n";

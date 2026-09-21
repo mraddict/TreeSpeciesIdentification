@@ -233,7 +233,7 @@ int main()
 				FeatureExtractor::saveCSV(courseFeatures, course.outputDir + featureCSV);
 
 				// 5. Feature statistics
-				FeatureExtractor::printFeatureStats(features);
+				FeatureExtractor::printFeatureStats(courseFeatures);
 
 				OverlayRenderer::saveOverlay(*pAerialImg, *pForest, *pTrees, course.outputDir + "/aerial_forest_tree_combined.png");
 
@@ -268,6 +268,9 @@ int main()
 			// Save merged CSV
 			TSICommon::mkdirs(courseDSConfig.outputDir);
 			saveMergedCSV(perCourseFeatures, enabledDSs, courseDSConfig.outputDir + mergedFeatureCSV);
+
+			// statistics
+			FeatureExtractor::printFeatureStats(features);
 		}
 
 /*
@@ -354,7 +357,7 @@ int main()
 
 				roOpts.drawLegend = true;
 				roOpts.polyLineWidth = 1;
-				roOpts.crownScale = 2;//0.5;
+				roOpts.crownScale = 0.5;
 				roOpts.crownAlpha = 0.4;
 				roOpts.crownOutlineWidth = 1;
 

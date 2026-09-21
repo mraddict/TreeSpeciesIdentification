@@ -153,7 +153,10 @@ public:
 			lt.tp.y = tp.y;
 			lt.tp.height = tp.height;
 			lt.tp.crownD = tp.crownD;
+			lt.tp.crownDSN = tp.crownDSN;
+			lt.tp.crownDEW = tp.crownDEW;
 			lt.tp.crownArea = tp.crownArea;
+			lt.tp.crownVol = tp.crownVol;
 
 			// Transform tree position to forest CRS for Contains test
 			double fx = tp.x;
