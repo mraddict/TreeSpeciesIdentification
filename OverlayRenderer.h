@@ -62,6 +62,9 @@ struct OverlayOptions
 	double heightColorMin = 0.0;					// min height for color scale
 	double heightColorMax = 25.0;				// max height for color scale
 
+	// scale
+	double saveScale = 1.0f;
+
 	// 式式式 Classification result rendering 式式式
 	enum ResultColorMode
 	{
@@ -113,7 +116,17 @@ public:
 	{
 		cv::Mat canvas = buildOverlay(aerialImg, forest, trees, opts);
 
-		cv::imwrite(outputPath, canvas);
+		cv::Mat output = canvas;
+
+		if (opts.saveScale < 1.0 && opts.saveScale > 0.0)
+		{
+			cv::Mat resized;
+			cv::resize(canvas, resized, cv::Size(), opts.saveScale, opts.saveScale, cv::INTER_AREA);
+
+			output = resized;
+		}
+
+		cv::imwrite(outputPath, output);
 		std::cout << "Overlay saved: " << outputPath << " (" << canvas.cols << "x" << canvas.rows << ")\n";
 	}
 
@@ -287,7 +300,17 @@ public:
 			drawCorrectnessLegend(canvas, results, opts);
 		}
 	
-		cv::imwrite(outputPath, canvas);
+		cv::Mat output = canvas;
+
+		if (opts.saveScale < 1.0 && opts.saveScale > 0.0)
+		{
+			cv::Mat resized;
+			cv::resize(canvas, resized, cv::Size(), opts.saveScale, opts.saveScale, cv::INTER_AREA);
+
+			output = resized;
+		}
+
+		cv::imwrite(outputPath, output);
 
 		std::cout << "  Saved: " << outputPath << " (" << imgW << "x" << imgH << ")\n";
 	}

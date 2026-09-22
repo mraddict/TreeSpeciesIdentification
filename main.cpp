@@ -235,6 +235,8 @@ int main()
 				// 5. Feature statistics
 				FeatureExtractor::printFeatureStats(courseFeatures);
 
+				OverlayOptions overlayOpt;
+				overlayOpt.saveScale = 0.5;
 				OverlayRenderer::saveOverlay(*pAerialImg, *pForest, *pTrees, course.outputDir + "/aerial_forest_tree_combined.png");
 
 				perCourseFeatures.push_back(std::move(courseFeatures));
@@ -360,6 +362,8 @@ int main()
 				roOpts.crownScale = 0.5;
 				roOpts.crownAlpha = 0.4;
 				roOpts.crownOutlineWidth = 1;
+
+				roOpts.saveScale = 0.5;
 
 				// Species overlay
 				std::string ovSpeciesPath = course.outputDir + "/result_species_overlay.png";
