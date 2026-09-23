@@ -52,8 +52,58 @@ ExtractionResult mergeFeatures(const std::vector<ExtractionResult>& perCourse, b
 {
 	// 항공사진 기반 특징 수 (BGR 6 + HSV 3 + 텍스처 8 = 17)
 	const int PHOTO_FEATURES = 17;
-
 	ExtractionResult merged;
+
+	// ── 공통 수종 찾기 (모든 코스의 학습 풀에 존재하는 수종) ──
+	std::set<std::string> commonSpecies;
+
+	if (normalizePhoto && perCourse.size() > 1)
+	{
+		// 첫 코스의 학습 풀 수종 수집
+		for (auto& tf : perCourse[0].all)
+		{
+			if (tf.insideForest && tf.reliable && !tf.speciesCode.empty())
+			{
+				commonSpecies.insert(tf.speciesCode);
+			}
+		}
+
+		// 나머지 코스와 교집합
+		for (size_t c = 1 ; c < perCourse.size() ; ++c)
+		{
+			std::set<std::string> courseSpecies;
+
+			for (auto& tf : perCourse[c].all)
+			{
+				if (tf.insideForest && tf.reliable && !tf.speciesCode.empty())
+				{
+					courseSpecies.insert(tf.speciesCode);
+				}
+			}
+
+			// 교집합: commonSpecies에 있지만 courseSpecies에 없는 것 제거
+			std::set<std::string> intersection;
+
+			for (auto& sp : commonSpecies)
+			{
+				if (courseSpecies.count(sp))
+				{
+					intersection.insert(sp);
+				}
+			}
+
+			commonSpecies = intersection;
+		}
+
+		std::cout << "  Common species for normalization: " << commonSpecies.size() << " -";
+		
+		for (auto& sp : commonSpecies)
+		{
+			std::cout << " " << sp;
+		}
+
+		std::cout << "\n";
+	}
 
 	for (size_t c = 0; c < perCourse.size(); ++c)
 	{
@@ -71,7 +121,7 @@ ExtractionResult mergeFeatures(const std::vector<ExtractionResult>& perCourse, b
 			continue;
 		}
 
-		// ── 코스별 평균/표준편차 계산 (학습 풀만 대상) ──
+		// ── 코스별 평균/표준편차 계산 (공통 수종의 학습 풀만 대상) ──
 		int nFeat = std::min(PHOTO_FEATURES, (int)feat.all[0].feature.size());
 		std::vector<double> sum(nFeat, 0.0);
 		std::vector<double> sumSq(nFeat, 0.0);
@@ -80,6 +130,12 @@ ExtractionResult mergeFeatures(const std::vector<ExtractionResult>& perCourse, b
 		for (auto& tf : feat.all)
 		{
 			if (!tf.insideForest || !tf.reliable)
+			{
+				continue;
+			}
+
+			// 공통 수종만 사용
+			if (!commonSpecies.count(tf.speciesCode))
 			{
 				continue;
 			}
@@ -105,6 +161,8 @@ ExtractionResult mergeFeatures(const std::vector<ExtractionResult>& perCourse, b
 				stddev[i] = (var > 0.0) ? std::sqrt(var) : 1.0;
 			}
 		}
+
+		std::cout << "  Course " << c << ": normalization base = " << count << " trees (common species only)\n";
 
 		// ── 정규화 적용하여 복사 ──
 		for (auto& tf : feat.all)
