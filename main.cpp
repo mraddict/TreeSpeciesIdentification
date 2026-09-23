@@ -18,7 +18,8 @@
 #include "AerialReproject.h"
 
 // ─── Merge features from multiple courses ───
-ExtractionResult mergeFeatures(const std::vector<ExtractionResult>& perCourse, const std::vector<CourseDataSet>& courseDSs)
+// normalizePhoto: true이면 항공사진 기반 특징(0~16)을 코스별 z-score 정규화
+ExtractionResult mergeFeatures_old(const std::vector<ExtractionResult>& perCourse, const std::vector<CourseDataSet>& courseDSs)
 {
 	ExtractionResult merged;
 
@@ -27,6 +28,96 @@ ExtractionResult mergeFeatures(const std::vector<ExtractionResult>& perCourse, c
 		for (auto& tf : feat.all)
 		{
 			merged.all.push_back(tf);
+		}
+	}
+
+	// Rebuild train/predict pointers
+	for (auto& tf : merged.all)
+	{
+		if (tf.insideForest && tf.reliable)
+		{
+			merged.train.push_back(&tf);
+		}
+		else if (!tf.insideForest)
+		{
+			merged.predict.push_back(&tf);
+		}
+	}
+
+	return merged;
+}
+
+// normalizePhoto: true이면 항공사진 기반 특징(0~16)을 코스별 z-score 정규화
+ExtractionResult mergeFeatures(const std::vector<ExtractionResult>& perCourse, bool normalizePhoto = false)
+{
+	// 항공사진 기반 특징 수 (BGR 6 + HSV 3 + 텍스처 8 = 17)
+	const int PHOTO_FEATURES = 17;
+
+	ExtractionResult merged;
+
+	for (size_t c = 0; c < perCourse.size(); ++c)
+	{
+		auto& feat = perCourse[c];
+
+		if (!normalizePhoto || feat.all.empty())
+		{
+			// 정규화 없이 그대로 복사
+
+			for (auto& tf : feat.all)
+			{
+				merged.all.push_back(tf);
+			}
+
+			continue;
+		}
+
+		// ── 코스별 평균/표준편차 계산 (학습 풀만 대상) ──
+		int nFeat = std::min(PHOTO_FEATURES, (int)feat.all[0].feature.size());
+		std::vector<double> sum(nFeat, 0.0);
+		std::vector<double> sumSq(nFeat, 0.0);
+		int count = 0;
+
+		for (auto& tf : feat.all)
+		{
+			if (!tf.insideForest || !tf.reliable)
+			{
+				continue;
+			}
+
+			for (int i = 0; i < nFeat; ++i)
+			{
+				sum[i] += tf.feature[i];
+				sumSq[i] += tf.feature[i] * tf.feature[i];
+			}
+
+			++count;
+		}
+
+		std::vector<double> mean(nFeat, 0.0);
+		std::vector<double> stddev(nFeat, 0.0);
+
+		if (count > 1)
+		{
+			for (int i = 0 ; i < nFeat ; ++i)
+			{
+				mean[i] = sum[i] / count;
+				double var = sumSq[i] / count - mean[i] * mean[i];
+				stddev[i] = (var > 0.0) ? std::sqrt(var) : 1.0;
+			}
+		}
+
+		// ── 정규화 적용하여 복사 ──
+		for (auto& tf : feat.all)
+		{
+			TreeFeature copy = tf;
+
+			for (int i = 0 ; (i < nFeat) && (i < (int)copy.feature.size()) ; ++i)
+			{
+				copy.feature[i] = (float)((copy.feature[i] - mean[i]) / stddev[i]);
+			}
+
+			// 특징 17~24 (LiDAR)는 그대로 유지
+			merged.all.push_back(copy);
 		}
 	}
 
@@ -261,12 +352,18 @@ int main()
 				}
 			}
 
-			features = mergeFeatures(perCourseFeatures, enabledDSs);
+			bool normalizePhoto = true;
+			features = mergeFeatures(perCourseFeatures, normalizePhoto);
 
 			std::cout << "  Total trees: " << features.all.size() << "\n";
 			std::cout << "  Train pool:  " << features.train.size() << "\n";
 			std::cout << "  Predict:     " << features.predict.size() << "\n";
 
+			if (normalizePhoto)
+			{
+				std::cout << "  Photo feature normalization: ON (features 0-16)\n";
+			}
+			
 			// Save merged CSV
 			TSICommon::mkdirs(courseDSConfig.outputDir);
 			saveMergedCSV(perCourseFeatures, enabledDSs, courseDSConfig.outputDir + mergedFeatureCSV);
