@@ -149,6 +149,36 @@ public:
 	// Create directory recursively (like mkdir -p)
 	static void mkdirs(const std::string& path)
 	{
+#ifdef _WIN32
+		// 구분자 통일
+		std::string p = path;
+
+		for (auto& c : p)
+		{
+			if (c == '/')
+			{
+				c = '\\';
+			}
+		}
+
+		// 상위 → 하위 순서로 생성
+		for (size_t i = 0 ; i < p.size() ; ++i)
+		{
+			if ((p[i] == '\\') || (i == p.size() - 1))
+			{
+				std::string sub = p.substr(0, i + 1);
+				_mkdir(sub.c_str());
+			}
+		}
+#else
+		std::string cmd = "mkdir -p \"" + path + "\"";
+		system(cmd.c_str());
+#endif
+	}
+
+/*
+	static void mkdirs(const std::string& path)
+	{
 		if (path.empty() || exists(path))
 		{
 			return;
@@ -163,6 +193,41 @@ public:
 		}
 
 		_mkdir(path.c_str());
+	}
+*/
+
+	// ─── 유틸: 파일명에서 확장자 분리 ───
+	static std::string getBaseName(const std::string& path)
+	{
+		size_t sep = path.find_last_of("/\\");
+		std::string name = (sep != std::string::npos) ? path.substr(sep + 1) : path;
+
+		size_t dot = name.find_last_of('.');
+
+		return (dot != std::string::npos) ? name.substr(0, dot) : name;
+	}
+
+	static std::string getExtension(const std::string& path)
+	{
+		size_t dot = path.find_last_of('.');
+
+		return (dot != std::string::npos) ? path.substr(dot) : "";
+	}
+
+	// ─── 유틸: 파일 복사 ───
+	static bool copyFile(const std::string& src, const std::string& dst)
+	{
+		std::ifstream in(src, std::ios::binary);
+		std::ofstream out(dst, std::ios::binary);
+
+		if (!in || !out)
+		{
+			return false;
+		}
+
+		out << in.rdbuf();
+
+		return true;
 	}
 
 	// Join path components

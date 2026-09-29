@@ -16,6 +16,7 @@
 #include "OutputLogger.h"
 
 #include "AerialReproject.h"
+#include "AerialHistogramMatcher.h"
 
 // ─── Merge features from multiple courses ───
 // normalizePhoto: true이면 항공사진 기반 특징(0~16)을 코스별 z-score 정규화
@@ -258,7 +259,7 @@ int main()
 {
  	TSICommon::initialize();
 	ForestCommon::initialize();
-
+	
 	//reprojectAerialPhoto("../../Resources/Diamond/DiamondCC_Orthomosic_BackGround.tif", "../../Resources/Diamond/DiamondCC_orthomosaic_5179_05cm.tif");
 
 	OutputLogger logger("results", "log");
@@ -268,33 +269,18 @@ int main()
 	std::string mergedFeatureCSV = "/merged_tree_features.csv";
 	std::string modelDir = "/species_model";
 	std::string modelCSV = "/species_result.csv";
-	/*
-	std::string featureCSV = outputDir + "/tree_features.csv";
-	std::string mergedFeatureCSV = outputDir + "/merged_tree_features.csv";
-	std::string modelDir = outputDir + "/species_model";
-	std::string modelCSV = modelDir + "/species_result.csv";
-*/
 	 
 	_mkdir(outputDir.c_str());
 
-	// 항공사진
-	std::string aerialImgPath = "../../Resources/AnseongW/AnSung_W_orthomosaic_5179_05cm.tif";
-	//std::string aerialImgPath = "../../Resources/AnseongW/AnSung_W_orthomosaic_5179_20cm.tif";
+	std::string courseDataSetConfigFilename = "../../Resources/courses_dataset_old.json";
 
-	// 임상도
-	std::vector<std::string> SHPFiles =
-	{
-		"../../Resources/AnseongW/treemap/37713068/37713068.shp",
-		"../../Resources/AnseongW/treemap/37713069/37713069.shp",
-		"../../Resources/AnseongW/treemap/37713078/37713078.shp",
-		"../../Resources/AnseongW/treemap/37713079/37713079.shp",
-		//"./forest_merged.shp"
-	};
+/*
+	AerialHistogramMatcher matcher;
+	matcher.runGDAL(courseDataSetConfigFilename, "AnseongW", "../../Resources/matched_images");
 
-	// 나무위치
-	std::string treeInfoPath = "../../Resources/AnseongW/tree_info.csv";
+	return 0;
+*/
 
-	std::string courseDataSetConfigFilename = "../../Resources/courses_dataset.json";
 	CourseDataSetConfig courseDSConfig = CourseDataSetConfigLoader::load(courseDataSetConfigFilename);
 
 	bool resumeFeature = false;

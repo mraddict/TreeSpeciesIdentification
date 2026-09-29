@@ -22,10 +22,11 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AerialHistogramMatcher.h" />
     <ClInclude Include="AerialLoader.h" />
     <ClInclude Include="AerialReproject.h" />
     <ClInclude Include="CoordTransformer.h" />
-    <ClInclude Include="CourseDataSetConfig.h" />
+    <ClInclude Include="CourseDataSetLoader.h" />
     <ClInclude Include="FeatureExtractor.h" />
     <ClInclude Include="ForestCommon.h" />
     <ClInclude Include="ForestLoader.h" />
