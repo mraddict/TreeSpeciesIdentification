@@ -19,6 +19,9 @@ class TSICommon
 {
 public:
 
+	// 프로젝트 기준 좌표계
+	static const int BASE_EPSG = 5179;
+
 	static void initialize()
 	{
 		

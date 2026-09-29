@@ -276,7 +276,7 @@ int main()
 
 /*
 	AerialHistogramMatcher matcher;
-	matcher.runGDAL(courseDataSetConfigFilename, "AnseongW", "../../Resources/matched_images");
+	matcher.runWithTrees(courseDataSetConfigFilename, "AnseongW", "../../Resources/matched_images");
 
 	return 0;
 */

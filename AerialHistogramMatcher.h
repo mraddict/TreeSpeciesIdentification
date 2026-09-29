@@ -1,21 +1,21 @@
-#pragma once
+ï»¿#pragma once
 
 #include "CourseDataSetLoader.h"
 
-// CDF: Cumulative Distribution Function (´©Àû ºĞÆ÷ ÇÔ¼ö)
+// CDF: Cumulative Distribution Function (ëˆ„ì  ë¶„í¬ í•¨ìˆ˜)
 
 class AerialHistogramMatcher
 {
 public:
 
-	// ¦¡¦¡¦¡ ¸ŞÀÎ ½ÇÇà ÇÔ¼ö ¦¡¦¡¦¡
-	// configPath  : courses.json °æ·Î
-	// refCourseName : ±âÁØ ÄÚ½º ÀÌ¸§ (¿¹: "AnseongW")
-	// outputDir   : º¯È¯µÈ ÀÌ¹ÌÁö ÀúÀå Æú´õ
-	// suffix      : ÀúÀå ÆÄÀÏ¸í Á¢¹Ì»ç (±âº»: "_matched")
+	// â”€â”€â”€ ë©”ì¸ ì‹¤í–‰ í•¨ìˆ˜ â”€â”€â”€
+	// configPath  : courses.json ê²½ë¡œ
+	// refCourseName : ê¸°ì¤€ ì½”ìŠ¤ ì´ë¦„ (ì˜ˆ: "AnseongW")
+	// outputDir   : ë³€í™˜ëœ ì´ë¯¸ì§€ ì €ì¥ í´ë”
+	// suffix      : ì €ì¥ íŒŒì¼ëª… ì ‘ë¯¸ì‚¬ (ê¸°ë³¸: "_matched")
 	void run(const std::string& configPath, const std::string& refCourseName, const std::string& outputDir, const std::string& suffix = "_matched")
 	{
-		// 1. ¼³Á¤ ·Îµå
+		// 1. ì„¤ì • ë¡œë“œ
 		//std::string courseDataSetConfigFilename = "../../Resources/courses_dataset.json";
 		CourseDataSetConfig courseDSConfig = CourseDataSetConfigLoader::load(configPath);
 		std::vector<CourseDataSet> enabled;
@@ -34,7 +34,7 @@ public:
 			return;
 		}
 
-		// 2. ±âÁØ ÄÚ½º Ã£±â
+		// 2. ê¸°ì¤€ ì½”ìŠ¤ ì°¾ê¸°
 		const CourseDataSet* refDS = nullptr;
 
 		for (auto& c : enabled)
@@ -60,8 +60,8 @@ public:
 			<< "  Output:    " << outputDir << "\n"
 			<< "========================================\n\n";
 
-		// 3. ±âÁØ ÀÌ¹ÌÁöÀÇ È÷½ºÅä±×·¥(CDF) °è»ê
-		//    ÀüÃ¼ ÀÌ¹ÌÁö¸¦ ·ÎµåÇÏÁö ¾Ê°í È÷½ºÅä±×·¥¸¸ °è»ê
+		// 3. ê¸°ì¤€ ì´ë¯¸ì§€ì˜ íˆìŠ¤í† ê·¸ë¨(CDF) ê³„ì‚°
+		//    ì „ì²´ ì´ë¯¸ì§€ë¥¼ ë¡œë“œí•˜ì§€ ì•Šê³  íˆìŠ¤í† ê·¸ë¨ë§Œ ê³„ì‚°
 	
 		std::cout << "=== Computing reference histogram ===\n" << "  Loading: " << refDS->aerialImgPath << "\n";
 
@@ -81,23 +81,23 @@ public:
 			refCDF = computeCDF(refImg);
 
 			std::cout << "  Reference CDF computed.\n\n";
-			// refImg ¸Ş¸ğ¸® ÇØÁ¦µÊ (½ºÄÚÇÁ Á¾·á)
+			// refImg ë©”ëª¨ë¦¬ í•´ì œë¨ (ìŠ¤ì½”í”„ ì¢…ë£Œ)
 		}
 
-		// 4. °¢ ÄÚ½º Ã³¸®
+		// 4. ê° ì½”ìŠ¤ ì²˜ë¦¬
 		for (auto& courseDS : enabled)
 		{
 			std::string outDir = outputDir + "/" + courseDS.courseName;
 			TSICommon::mkdirs(outDir);
 
-			// ÆÄÀÏ¸í ÃßÃâ
+			// íŒŒì¼ëª… ì¶”ì¶œ
 			std::string basename = TSICommon::getBaseName(courseDS.aerialImgPath);
 			std::string ext = TSICommon::getExtension(courseDS.aerialImgPath);
 			std::string outPath = outDir + "/" + basename + suffix + ext;
 
 			if (courseDS.courseName == refCourseName)
 			{
-				// ±âÁØ ÄÚ½º´Â ¿øº» º¹»ç
+				// ê¸°ì¤€ ì½”ìŠ¤ëŠ” ì›ë³¸ ë³µì‚¬
 				std::cout << "=== " << courseDS.courseName << " (reference) ===\n" << "  Copying original to: " << outPath << "\n\n";
 				TSICommon::copyFile(courseDS.aerialImgPath, outPath);
 
@@ -117,20 +117,20 @@ public:
 
 			std::cout << "  Size: " << srcImg.cols << "x" << srcImg.rows << " (" << (srcImg.total() * srcImg.elemSize() / 1048576) << " MB)\n";
 
-			// ¼Ò½º CDF °è»ê
+			// ì†ŒìŠ¤ CDF ê³„ì‚°
 			auto srcCDF = computeCDF(srcImg);
-			// LUT »ı¼º
+			// LUT ìƒì„±
 			auto luts = buildLUTs(srcCDF, refCDF);
 
-			// LUT Àû¿ë (in-place)
+			// LUT ì ìš© (in-place)
 			applyLUTs(srcImg, luts);
 
-			// ÀúÀå
+			// ì €ì¥
 			std::cout << "  Saving: " << outPath << "\n";
 			cv::imwrite(outPath, srcImg);
 		
 			std::cout << "  Done.\n\n";
-			// srcImg ¸Ş¸ğ¸® ÇØÁ¦µÊ (·çÇÁ ¹İº¹)
+			// srcImg ë©”ëª¨ë¦¬ í•´ì œë¨ (ë£¨í”„ ë°˜ë³µ)
 		}
 
 		std::cout << "========================================\n"
@@ -144,7 +144,7 @@ public:
 	{
 		GDALAllRegister();
 
-		// 1. ¼³Á¤ ·Îµå
+		// 1. ì„¤ì • ë¡œë“œ
 		//std::string courseDataSetConfigFilename = "../../Resources/courses_dataset.json";
 		CourseDataSetConfig courseDSConfig = CourseDataSetConfigLoader::load(configPath);
 		std::vector<CourseDataSet> enabled;
@@ -163,7 +163,7 @@ public:
 			return;
 		}
 
-		// 2. ±âÁØ ÄÚ½º Ã£±â
+		// 2. ê¸°ì¤€ ì½”ìŠ¤ ì°¾ê¸°
 		const CourseDataSet* refDS = nullptr;
 
 		for (auto& c : enabled)
@@ -189,7 +189,7 @@ public:
 			<< "  Output:    " << outputDir << "\n"
 			<< "========================================\n\n";
 
-		// 1. ±âÁØ ÀÌ¹ÌÁö È÷½ºÅä±×·¥ °è»ê (ÁÙ ´ÜÀ§, ¸Ş¸ğ¸® ~width bytes)
+		// 1. ê¸°ì¤€ ì´ë¯¸ì§€ íˆìŠ¤í† ê·¸ë¨ ê³„ì‚° (ì¤„ ë‹¨ìœ„, ë©”ëª¨ë¦¬ ~width bytes)
 
 		std::cout << "=== Reference: " << refCourseName << " ===\n" << "  Path: " << refDS->aerialImgPath << "\n";
 
@@ -203,21 +203,21 @@ public:
 		CDF refCDF = calcHistogramToCDF(refHist);
 		std::cout << "  CDF computed.\n\n";
 
-		// 2. °¢ ÄÚ½º Ã³¸®
+		// 2. ê° ì½”ìŠ¤ ì²˜ë¦¬
 
 		for (auto& courseDS : enabled)
 		{
 			std::string outDir = outputDir + "/" + courseDS.courseName;
 			TSICommon::mkdirs(outDir);
 	
-			// ÆÄÀÏ¸í ÃßÃâ
+			// íŒŒì¼ëª… ì¶”ì¶œ
 			std::string basename = TSICommon::getBaseName(courseDS.aerialImgPath);
 			std::string ext = TSICommon::getExtension(courseDS.aerialImgPath);
 			std::string outPath = outDir + "/" + basename + suffix + ext;
 
 			if (courseDS.courseName == refCourseName)
 			{
-				// ±âÁØ ÄÚ½º´Â ¿øº» º¹»ç
+				// ê¸°ì¤€ ì½”ìŠ¤ëŠ” ì›ë³¸ ë³µì‚¬
 				std::cout << "=== " << courseDS.courseName << " (reference) ===\n" << "  Copying original to: " << outPath << "\n\n";
 				TSICommon::copyFile(courseDS.aerialImgPath, outPath);
 
@@ -226,7 +226,7 @@ public:
 	
 			std::cout << "=== Matching: " << courseDS.courseName << " ===\n" << "  Path: " << courseDS.aerialImgPath << "\n";
 
-			// ¼Ò½º È÷½ºÅä±×·¥ °è»ê (ÁÙ ´ÜÀ§)
+			// ì†ŒìŠ¤ íˆìŠ¤í† ê·¸ë¨ ê³„ì‚° (ì¤„ ë‹¨ìœ„)
 
 			Histogram srcHist;
 
@@ -238,11 +238,11 @@ public:
 
 			CDF srcCDF = calcHistogramToCDF(srcHist);
 		
-			// LUT »ı¼º
+			// LUT ìƒì„±
 			LUT lut = buildLUT(srcCDF, refCDF);
 			std::cout << "  LUT computed.\n";
 
-			// LUT Àû¿ë + ÀúÀå (ÁÙ ´ÜÀ§)
+			// LUT ì ìš© + ì €ì¥ (ì¤„ ë‹¨ìœ„)
 			if (applyLUTandSave(courseDS.aerialImgPath, outPath, lut))
 			{
 				std::cout << "  Saved: " << outPath << "\n\n";
@@ -260,9 +260,135 @@ public:
 			<< "========================================\n";
 	}
 
+	void runWithTrees(const std::string& configPath, const std::string& refCourseName, const std::string& outputDir, const std::string& suffix = "_matched")
+	{
+		GDALAllRegister();
+
+		// 1. ì„¤ì • ë¡œë“œ
+		//std::string courseDataSetConfigFilename = "../../Resources/courses_dataset.json";
+		CourseDataSetConfig courseDSConfig = CourseDataSetConfigLoader::load(configPath);
+		std::vector<CourseDataSet> enabled;
+
+		for (auto& c : courseDSConfig.courses)
+		{
+			if (c.enabled)
+			{
+				enabled.push_back(c);
+			}
+		}
+
+		if (enabled.empty())
+		{
+			std::cerr << "Error: No enabled courses in config.\n";
+			return;
+		}
+
+		// 2. ê¸°ì¤€ ì½”ìŠ¤ ì°¾ê¸°
+		const CourseDataSet* refDS = nullptr;
+
+		for (auto& c : enabled)
+		{
+			if (c.courseName == refCourseName)
+			{
+				refDS = &c;
+
+				break;
+			}
+		}
+
+		if (!refDS)
+		{
+			std::cerr << "Error: Reference course '" << refCourseName << "' not found.\n";
+			return;
+		}
+
+		std::cout << "========================================\n"
+			<< "  Histogram Matching\n"
+			<< "  Reference: " << refCourseName << "\n"
+			<< "  Courses:   " << enabled.size() << "\n"
+			<< "  Output:    " << outputDir << "\n"
+			<< "========================================\n\n";
+	
+		// 1. ê¸°ì¤€ ì½”ìŠ¤ â€” TreeLoaderë¡œ ë‚˜ë¬´ ë¡œë“œ + ìˆ˜ê´€ íˆìŠ¤í† ê·¸ë¨
+		std::cout << "=== Reference: " << refCourseName << " ===\n" 
+			<< "  Aerial: " << refDS->aerialImgPath << "\n" 
+			<< "  Trees:  " << refDS->treeInfoPath << "\n";
+
+		TreeData refTreeData = TreeLoader::load(refDS->treeInfoPath, refDS->treeSrcEPSG, TSICommon::BASE_EPSG);
+
+		std::cout << "  Loaded: " << refTreeData.tps.size() << " trees\n";
+
+		Histogram refHist;
+
+		if (!computeHistogramFromTrees(refDS->aerialImgPath, refTreeData.tps, refHist))
+		{
+			return;
+		}
+
+		CDF refCDF = calcHistogramToCDF(refHist);
+		std::cout << "  Reference CDF computed.\n\n";
+
+		// 2. ê° ì½”ìŠ¤ ì²˜ë¦¬
+		for (auto& courseDS : enabled)
+		{
+			std::string outDir = outputDir + "/" + courseDS.courseName;
+			TSICommon::mkdirs(outDir);
+
+			// íŒŒì¼ëª… ì¶”ì¶œ
+			std::string basename = TSICommon::getBaseName(courseDS.aerialImgPath);
+			std::string ext = TSICommon::getExtension(courseDS.aerialImgPath);
+			std::string outPath = outDir + "/" + basename + suffix + ext;
+
+			if (courseDS.courseName == refCourseName)
+			{
+				// ê¸°ì¤€ ì½”ìŠ¤ëŠ” ì›ë³¸ ë³µì‚¬
+				std::cout << "=== " << courseDS.courseName << " (reference) ===\n" << "  Copying original to: " << outPath << "\n\n";
+				TSICommon::copyFile(courseDS.aerialImgPath, outPath);
+
+				continue;
+			}
+
+			std::cout << "=== Matching: " << courseDS.courseName << " ===\n" << "  Path: " << courseDS.aerialImgPath << "\n" << "  Trees:  " << courseDS.treeInfoPath << "\n";
+
+			// TreeLoaderë¡œ ë‚˜ë¬´ ë¡œë“œ (ì¢Œí‘œ ë³€í™˜ í¬í•¨)
+			TreeData srcTreeData = TreeLoader::load(courseDS.treeInfoPath, courseDS.treeSrcEPSG, TSICommon::BASE_EPSG);
+			std::cout << "  Loaded: " << srcTreeData.tps.size() << " trees\n";
+
+			// ìˆ˜ê´€ í”½ì…€ íˆìŠ¤í† ê·¸ë¨
+			Histogram srcHist;
+
+			if (!computeHistogramFromTrees(courseDS.aerialImgPath, srcTreeData.tps, srcHist))
+			{
+				std::cerr << "  Histogram failed. Skipping.\n\n";
+				continue;
+			}
+
+			CDF srcCDF = calcHistogramToCDF(srcHist);
+
+			// LUT ìƒì„± + ì ìš©
+			LUT lut = buildLUT(srcCDF, refCDF);
+			std::cout << "  LUT computed.\n";
+
+			if (applyLUTandSave(courseDS.aerialImgPath, outPath, lut))
+			{
+				std::cout << "  Saved: " << outPath << "\n\n";
+			}
+			else
+			{
+				std::cerr << "  Save failed.\n\n";
+			}
+		}
+	
+		std::cout << "========================================\n"
+			<< "  Histogram matching complete.\n"
+			<< "  Update courses.json aerial paths\n"
+			<< "  to matched images, then run pipeline.\n"
+			<< "========================================\n";
+	}
+
 	private:
 
-	// BGR ÀÌ¹ÌÁö ·Îµå (4¹êµå¸é ¾Õ 3¹êµå¸¸ »ç¿ë)
+	// BGR ì´ë¯¸ì§€ ë¡œë“œ (4ë°´ë“œë©´ ì• 3ë°´ë“œë§Œ ì‚¬ìš©)
 	static cv::Mat loadImageBGR(const std::string& path)
 	{
 		cv::Mat img = cv::imread(path, cv::IMREAD_UNCHANGED);
@@ -274,7 +400,7 @@ public:
 
 		if (img.channels() == 4)
 		{
-			// BGRA ¡æ BGR
+			// BGRA â†’ BGR
 			cv::Mat bgr;
 			cv::cvtColor(img, bgr, cv::COLOR_BGRA2BGR);
 
@@ -292,7 +418,7 @@ public:
 		return img;
 	}
 
-	// Ã¤³Îº° CDF °è»ê (B, G, R 3°³)
+	// ì±„ë„ë³„ CDF ê³„ì‚° (B, G, R 3ê°œ)
 	static std::vector<std::vector<float>> computeCDF(const cv::Mat& img)
 	{
 		std::vector<cv::Mat> channels;
@@ -308,7 +434,7 @@ public:
 			cv::Mat hist;
 			cv::calcHist(&channels[c], 1, nullptr, cv::Mat(), hist, 1, &histSize, &histRange);
 
-			// ´©Àû
+			// ëˆ„ì 
 			std::vector<float> cdf(256);
 			cdf[0] = hist.at<float>(0);
 
@@ -317,7 +443,7 @@ public:
 				cdf[i] = cdf[i - 1] + hist.at<float>(i);
 			}
 
-			// Á¤±ÔÈ­ (0~1)
+			// ì •ê·œí™” (0~1)
 			float total = cdf[255];
 
 			if (total > 0)
@@ -334,7 +460,7 @@ public:
 		return cdfs;
 	}
 
-	// src CDF ¡æ ref CDF ¸ÅÇÎ LUT(Look up table) »ı¼º
+	// src CDF â†’ ref CDF ë§¤í•‘ LUT(Look up table) ìƒì„±
 	static std::vector<cv::Mat> buildLUTs(const std::vector<std::vector<float>>& srcCDF, const std::vector<std::vector<float>>& refCDF)
 	{
 		std::vector<cv::Mat> luts;
@@ -349,7 +475,7 @@ public:
 			{
 				float val = srcCDF[c][i];
 
-				// refCDF¿¡¼­ °¡Àå °¡±î¿î °ª Ã£±â (ÀÌÁø Å½»ö)
+				// refCDFì—ì„œ ê°€ì¥ ê°€ê¹Œìš´ ê°’ ì°¾ê¸° (ì´ì§„ íƒìƒ‰)
 				int lo = 0;
 				int hi = 255;
 				int best = 0;
@@ -369,7 +495,7 @@ public:
 					}
 				}
 
-				// best¿Í best+1 Áß ´õ °¡±î¿î ÂÊ
+				// bestì™€ best+1 ì¤‘ ë” ê°€ê¹Œìš´ ìª½
 				if (best < 255)
 				{
 					float d1 = std::abs(val - refCDF[c][best]);
@@ -390,7 +516,7 @@ public:
 		return luts;
 	}
 
-	// LUT Àû¿ë (in-place, ¸Ş¸ğ¸® Àı¾à)
+	// LUT ì ìš© (in-place, ë©”ëª¨ë¦¬ ì ˆì•½)
 	static void applyLUTs(cv::Mat& img, const std::vector<cv::Mat>& luts)
 	{
 		std::vector<cv::Mat> channels;
@@ -404,13 +530,13 @@ public:
 		cv::merge(channels, img);
 	}
 
-	// ¦¡¦¡¦¡ Ã¤³Îº° È÷½ºÅä±×·¥ (3Ã¤³Î, °¢ 256) ¦¡¦¡¦¡
+	// â”€â”€â”€ ì±„ë„ë³„ íˆìŠ¤í† ê·¸ë¨ (3ì±„ë„, ê° 256) â”€â”€â”€
 	struct Histogram
 	{
 		long long bins[3][256] = {};
 	};
 
-	// ¦¡¦¡¦¡ È÷½ºÅä±×·¥ ¡æ CDF (Á¤±ÔÈ­ 0~1) ¦¡¦¡¦¡
+	// â”€â”€â”€ íˆìŠ¤í† ê·¸ë¨ â†’ CDF (ì •ê·œí™” 0~1) â”€â”€â”€
 	struct CDF
 	{
 		float values[3][256] = {};
@@ -443,13 +569,13 @@ public:
 		return cdf;
 	}
 
-	// ¦¡¦¡¦¡ CDF ¡æ LUT »ı¼º ¦¡¦¡¦¡
+	// â”€â”€â”€ CDF â†’ LUT ìƒì„± â”€â”€â”€
 	struct LUT
 	{
 		unsigned char table[3][256] = {};
 	};
 
-	// ¦¡¦¡¦¡ GDAL·Î ÁÙ ´ÜÀ§ È÷½ºÅä±×·¥ °è»ê ¦¡¦¡¦¡
+	// â”€â”€â”€ GDALë¡œ ì¤„ ë‹¨ìœ„ íˆìŠ¤í† ê·¸ë¨ ê³„ì‚° â”€â”€â”€
 	static bool computeHistogramGDAL(const std::string& path, Histogram& hist)
 	{
 		GDALDataset* ds = (GDALDataset*)GDALOpen(path.c_str(), GA_ReadOnly);
@@ -467,10 +593,10 @@ public:
 
 		std::cout << "  Size: " << width << "x" << height << " (" << nBands << " bands)\n";
 
-		// ÁÙ ¹öÆÛ (1ÁÙ ¡¿ width ÇÈ¼¿)
+		// ì¤„ ë²„í¼ (1ì¤„ Ã— width í”½ì…€)
 		std::vector<unsigned char> lineBuf(width);
 
-		// ¹êµåº° È÷½ºÅä±×·¥ °è»ê
+		// ë°´ë“œë³„ íˆìŠ¤í† ê·¸ë¨ ê³„ì‚°
 		for (int b = 0; b < useBands; ++b)
 		{
 			GDALRasterBand* pBand = ds->GetRasterBand(b + 1);
@@ -492,7 +618,7 @@ public:
 				}
 			}
 
-			// ÁøÇà·ü (¹êµå´ç)
+			// ì§„í–‰ë¥  (ë°´ë“œë‹¹)
 			if (b == 0)
 			{
 				std::cout << "  Histogram: band 1/" << useBands;
@@ -510,6 +636,143 @@ public:
 		return true;
 	}
 
+	// â”€â”€ ë‚˜ë¬´ ìˆ˜ê´€ í”½ì…€ë§Œìœ¼ë¡œ íˆìŠ¤í† ê·¸ë¨ ê³„ì‚° â”€â”€
+	//    TreeLoaderë¡œ ë¡œë“œëœ TreeDataì˜ tpsë¥¼ ì‚¬ìš©
+	static bool computeHistogramFromTrees(const std::string& aerialImgPath, const std::vector<TreePoint>& trees, Histogram& hist)
+	{
+		GDALDataset* ds = (GDALDataset*)GDALOpen(aerialImgPath.c_str(), GA_ReadOnly);
+
+		if (!ds)
+		{
+			std::cerr << "  Error: Cannot open " << aerialImgPath << "\n";
+			return false;
+		}
+
+		int imgW = ds->GetRasterXSize();
+		int imgH = ds->GetRasterYSize();
+		int nBands = ds->GetRasterCount();
+		int useBands = std::min(nBands, 3);
+
+		// GeoTransform â†’ geoâ†’pixel ì—­ë³€í™˜ ê³„ìˆ˜
+		double gt[6];
+		ds->GetGeoTransform(gt);
+
+		double pixelSize = std::abs(gt[1]);
+		
+		double igt[6];
+		CoordTransformer::computeInverseGT(gt, igt);
+		
+		std::cout << "  Image: " << imgW << "x" << imgH << " (" << nBands << " bands, " << (pixelSize * 100) << " cm/px)\n" << "  Trees for histogram: " << trees.size() << "\n";
+
+		long long totalPixels = 0;
+		long long skippedBlack = 0;
+		int processedTrees = 0;
+
+		for (auto& tp : trees)
+		{
+			// geo â†’ pixel
+			double dx = tp.x - gt[0];
+			double dy = tp.y - gt[3];
+			int cx = (int)(igt[1] * dx + igt[2] * dy);
+			int cy = (int)(igt[4] * dx + igt[5] * dy);
+
+			// ìˆ˜ê´€ ë°˜ê²½ (í”½ì…€)
+			int radiusPx = (int)std::ceil(tp.crownD * 0.5 / pixelSize);
+
+			if (radiusPx < 1)
+			{
+				radiusPx = 1;
+			}
+
+			// ROI í´ë¦¬í•‘
+			int x0 = std::max(0, cx - radiusPx);
+			int y0 = std::max(0, cy - radiusPx);
+			int x1 = std::min(imgW - 1, cx + radiusPx);
+			int y1 = std::min(imgH - 1, cy + radiusPx);
+			int roiW = x1 - x0 + 1;
+			int roiH = y1 - y0 + 1;
+
+			if (roiW <= 0 || roiH <= 0)
+			{
+				continue;
+			}
+
+			// ROI ì½ê¸°
+			std::vector<std::vector<unsigned char>> roiBufs(useBands, std::vector<unsigned char>(roiW * roiH));
+
+			for (int b = 0 ; b < useBands ; ++b)
+			{
+				CPLErr err = ds->GetRasterBand(b + 1)->RasterIO(GF_Read, x0, y0, roiW, roiH,
+					roiBufs[b].data(), roiW, roiH,
+					GDT_Byte, 0, 0);
+
+				if (err != CE_None)
+				{
+					throw std::runtime_error("RasterIO failed at row " + std::to_string(b));
+				}
+			}
+
+			// ìˆ˜ê´€ ì› ì•ˆì˜ í”½ì…€ë§Œ íˆìŠ¤í† ê·¸ë¨ì— ì¶”ê°€
+			int rr = radiusPx * radiusPx;
+
+			for (int ry = 0 ; ry < roiH ; ++ry)
+			{
+				for (int rx = 0 ; rx < roiW ; ++rx)
+				{
+					int ddx = (x0 + rx) - cx;
+					int ddy = (y0 + ry) - cy;
+
+					if ((ddx * ddx + ddy * ddy) > rr)
+					{
+						continue;
+					}
+
+					int idx = ry * roiW + rx;
+
+					// NoData (RGB ëª¨ë‘ 0) ì œì™¸
+					bool isBlack = true;
+
+					for (int b = 0 ; b < useBands ; ++b)
+					{
+						if (roiBufs[b][idx] != 0)
+						{
+							isBlack = false;
+
+							break;
+						}
+					}
+
+					if (isBlack)
+					{
+						++skippedBlack;
+
+						continue;
+					}
+
+					for (int b = 0 ; b < useBands ; ++b)
+					{
+						hist.bins[b][roiBufs[b][idx]]++;
+					}
+
+					++totalPixels;
+				}
+			}
+
+			++processedTrees;
+
+			if (processedTrees % 10000 == 0)
+			{
+				std::cout << "  Progress: " << processedTrees << "/" << trees.size() << "\r" << std::flush;
+			}
+		}
+
+		std::cout << "  Crown pixels: " << totalPixels << " (black skipped: " << skippedBlack << ")\n";
+
+		GDALClose(ds);
+
+		return totalPixels > 0;
+	}
+
 	static LUT buildLUT(const CDF& srcCDF, const CDF& refCDF)
 	{
 		LUT lut;
@@ -520,10 +783,10 @@ public:
 			{
 				float val = srcCDF.values[b][i];
 
-				// ÀÌÁø Å½»ö
-				int lo = 0;
+				// ì´ì§„ íƒìƒ‰
+				int lo = 1;
 				int hi = 256;
-				int best = 0;
+				int best = 1;
 
 				while (lo <= hi)
 				{
@@ -558,7 +821,7 @@ public:
 		return lut;
 	}
 
-	// ¦¡¦¡¦¡ GDAL·Î ÁÙ ´ÜÀ§ LUT Àû¿ë + ÀúÀå ¦¡¦¡¦¡
+	// â”€â”€â”€ GDALë¡œ ì¤„ ë‹¨ìœ„ LUT ì ìš© + ì €ì¥ â”€â”€â”€
 	static bool applyLUTandSave(const std::string& srcPath, const std::string& outPath, const LUT& lut)
 	{
 		GDALDataset* srcDs = (GDALDataset*)GDALOpen(srcPath.c_str(), GA_ReadOnly);
@@ -574,7 +837,7 @@ public:
 		int nBands = srcDs->GetRasterCount();
 		int useBands = std::min(nBands, 3);
 
-		// Ãâ·Â ÆÄÀÏ »ı¼º (¿øº»°ú µ¿ÀÏÇÑ Å©±â, ¹êµå ¼ö, GeoTransform)
+		// ì¶œë ¥ íŒŒì¼ ìƒì„± (ì›ë³¸ê³¼ ë™ì¼í•œ í¬ê¸°, ë°´ë“œ ìˆ˜, GeoTransform)
 		GDALDriver* driver = GetGDALDriverManager()->GetDriverByName("GTiff");
 
 		if (!driver)
@@ -585,7 +848,7 @@ public:
 			return false;
 		}
 
-		// ¾ĞÃà ¿É¼Ç
+		// ì••ì¶• ì˜µì…˜
 		char** createOpts = nullptr;
 		createOpts = CSLSetNameValue(createOpts, "COMPRESS", "LZW");
 		createOpts = CSLSetNameValue(createOpts, "TILED", "YES");
@@ -602,7 +865,7 @@ public:
 			return false;
 		}
 
-		// GeoTransform, Projection º¹»ç
+		// GeoTransform, Projection ë³µì‚¬
 		double gt[6];
 
 		if (srcDs->GetGeoTransform(gt) == CE_None)
@@ -617,7 +880,7 @@ public:
 			outDs->SetProjection(proj);
 		}
 
-		// ÁÙ ´ÜÀ§ Ã³¸®
+		// ì¤„ ë‹¨ìœ„ ì²˜ë¦¬
 		std::vector<unsigned char> lineBuf(width);
 		int progressPct = 0;
 
@@ -637,7 +900,7 @@ public:
 					throw std::runtime_error("RasterIO failed at row " + std::to_string(y));
 				}
 
-				// RGB ¹êµå(1~3)¿¡¸¸ LUT Àû¿ë, ³ª¸ÓÁö(Alpha µî)´Â ±×´ë·Î
+				// RGB ë°´ë“œ(1~3)ì—ë§Œ LUT ì ìš©, ë‚˜ë¨¸ì§€(Alpha ë“±)ëŠ” ê·¸ëŒ€ë¡œ
 				if (b < useBands)
 				{
 					for (int x = 0 ; x < width ; ++x)
@@ -651,7 +914,7 @@ public:
 					GDT_Byte, 0, 0);
 			}
 
-			// ÁøÇà·ü
+			// ì§„í–‰ë¥ 
 			int pct = (int)((b + 1) * 100.0 / nBands);
 
 			if (pct != progressPct)
