@@ -1,58 +1,58 @@
-ï»¿#pragma once
+#pragma once
 
 #include "ForestLoader.h"
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-//  êµ¬ì¡°ì²´: ê°œë³„ ë‚˜ë¬´ ë°ì´í„°
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+//  ±¸Á¶Ã¼: °³º° ³ª¹« µ¥ÀÌÅÍ
+// ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
 struct TreePoint
 {
 	long long treeId = -1;			// TreeID
-	double x , y;							// ì§€ë¦¬ ì¢Œí‘œ (ì„ìƒë„ì™€ ê°™ì€ ì¢Œí‘œê³„ë¡œ ë³€í™˜ëœ ê°’. EPSG:5179)
+	double x , y;							// Áö¸® ÁÂÇ¥ (ÀÓ»óµµ¿Í °°Àº ÁÂÇ¥°è·Î º¯È¯µÈ °ª. EPSG:5179)
 	double height = 0.0;				// TreeHeight(metre)
 	double crownD = 0.0;			// CrownDiameter(metre)
 	double crownDSN = 0.0;		// CrownDiameter S-N (m)
 	double crownDEW = 0.0;		// CrownDiameter E-W (m)
-	double crownArea = 0.0;		// CrownArea (mÂ²)
-	double crownVol = 0.0;		// CrownVolume (mÂ³)
+	double crownArea = 0.0;		// CrownArea (m©÷)
+	double crownVol = 0.0;		// CrownVolume (m©ø)
 	long long oldId = -1;				// OldID
 };
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-//  ë¡œë”© ê²°ê³¼ + í†µê³„
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+//  ·Îµù °á°ú + Åë°è
+// ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
 struct TreeData
 {
 	std::vector<TreePoint> tps;		// tree
-	long long treeIdOffset = 0;		// ì½”ìŠ¤ë³„ TreeID ì¤‘ë³µ ì œê±°
+	long long treeIdOffset = 0;		// ÄÚ½ºº° TreeID Áßº¹ Á¦°Å
 
-	// ë²”ìœ„
+	// ¹üÀ§
 	OGREnvelope extent = {};
 
-	// í†µê³„
+	// Åë°è
 	int totalRows = 0;
 	int loadedCount = 0;
 	int skippedCount = 0;
 
-	// ì¢Œí‘œ ë³€í™˜ ì •ë³´
-	int srcEpsg = 0;					// ì›ë³¸ ì¢Œí‘œê³„ (0ì´ë©´ ë¶ˆëª…)
-	int dstEpsg = 0;					// ë³€í™˜ í›„ ì¢Œí‘œê³„ (0ì´ë©´ ë³€í™˜ ì•ˆ í•¨)
+	// ÁÂÇ¥ º¯È¯ Á¤º¸
+	int srcEpsg = 0;					// ¿øº» ÁÂÇ¥°è (0ÀÌ¸é ºÒ¸í)
+	int dstEpsg = 0;					// º¯È¯ ÈÄ ÁÂÇ¥°è (0ÀÌ¸é º¯È¯ ¾È ÇÔ)
 	bool transformed = false;
 
-	// CSV í—¤ë” ì •ë³´
+	// CSV Çì´õ Á¤º¸
 	std::vector<std::string> headers;
 };
 
-// CSV ë¡œë“œ + EPSG ë³€í™˜
+// CSV ·Îµå + EPSG º¯È¯
 class TreeLoader
 {
 public:
 
 	typedef std::map<std::string, int> TreeDataColumnMap;
 
-	// csvPath  : CSV íŒŒì¼ ê²½ë¡œ
-	// srcEPSG  : CSV ì¢Œí‘œê³„ (ì˜ˆ: 5186)
-	// dstEPSG  : ì„ìƒë„ ì¢Œí‘œê³„ (ì˜ˆ: 5179)
+	// csvPath  : CSV ÆÄÀÏ °æ·Î
+	// srcEPSG  : CSV ÁÂÇ¥°è (¿¹: 5186)
+	// dstEPSG  : ÀÓ»óµµ ÁÂÇ¥°è (¿¹: 5179)
 	//static std::vector<TreePoint> load(const std::string& csvPath, int srcEPSG, int dstEPSG, double offsetX = 0.0, double offsetY = 0.0)
 	static TreeData load(const std::string& csvPath, int srcEPSG = 0, int dstEPSG = 0, double offsetX = 0.0, double offsetY = 0.0)
 	{
@@ -67,11 +67,11 @@ public:
 		data.srcEpsg = srcEPSG;
 		data.dstEpsg = dstEPSG;
 
-		// í—¤ë” ì½ê¸° (BOM ì œê±° í¬í•¨)
+		// Çì´õ ÀĞ±â (BOM Á¦°Å Æ÷ÇÔ)
 		std::string header;
 		if (!std::getline(ifs, header))
 		{
-			throw std::runtime_error("CSVê°€ ë¹„ì–´ìˆìŠµë‹ˆë‹¤: " + csvPath);
+			throw std::runtime_error("CSV°¡ ºñ¾îÀÖ½À´Ï´Ù: " + csvPath);
 		}
 
 		header = stripBOM(header);
@@ -79,7 +79,7 @@ public:
 
 		data.headers = splitCSV(header);
 
-		// ì»¬ëŸ¼ ì¸ë±ìŠ¤ ë§¤í•‘
+		// ÄÃ·³ ÀÎµ¦½º ¸ÅÇÎ
 		auto colMap = buildColumnMap(data.headers);
 
 		int colTreeId = getCol(colMap, { "TreeID", "treeID", "treeid", "TREEID" });
@@ -95,10 +95,10 @@ public:
 
 		if ((colX < 0) || (colY < 0))
 		{
-			throw std::runtime_error("í•„ìˆ˜ ì»¬ëŸ¼(X, Y)ì„ ì°¾ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤.");
+			throw std::runtime_error("ÇÊ¼ö ÄÃ·³(X, Y)À» Ã£À» ¼ö ¾ø½À´Ï´Ù.");
 		}
 
-		// ë°ì´í„° ì½ê¸°
+		// µ¥ÀÌÅÍ ÀĞ±â
 
 		std::string line;
 
@@ -129,7 +129,7 @@ public:
 				tp.crownVol = readDouble(cols, colVol);
 				tp.oldId = readLongOpt(cols, colOldId);
 
-				// IDê°€ ì—†ìœ¼ë©´ í–‰ ë²ˆí˜¸ ì‚¬ìš©
+				// ID°¡ ¾øÀ¸¸é Çà ¹øÈ£ »ç¿ë
 				if (tp.treeId < 0)
 				{
 					tp.treeId = data.totalRows;
@@ -154,43 +154,43 @@ public:
 
 		if (data.tps.empty())
 		{
-			throw std::runtime_error("ë¡œë”©ëœ ë‚˜ë¬´ê°€ ì—†ìŠµë‹ˆë‹¤: " + csvPath);
+			throw std::runtime_error("·ÎµùµÈ ³ª¹«°¡ ¾ø½À´Ï´Ù: " + csvPath);
 		}
 
-		// ì¢Œí‘œ ë³€í™˜
+		// ÁÂÇ¥ º¯È¯
 
 		if ((srcEPSG > 0) && (dstEPSG > 0) && (srcEPSG != dstEPSG))
 		{
 			transformCoordinates(data, srcEPSG, dstEPSG);
 		}
 
-		// í†µê³„ ê³„ì‚°
+		// Åë°è °è»ê
 		computeStats(data);
 
 		return data;
 	}
 
-	// â”€â”€â”€ ë©”íƒ€ë°ì´í„° + í†µê³„ ì¶œë ¥ â”€â”€â”€
+	// ¦¡¦¡¦¡ ¸ŞÅ¸µ¥ÀÌÅÍ + Åë°è Ãâ·Â ¦¡¦¡¦¡
 	static void printInfo(const TreeData& d)
 	{
 		std::cout << std::fixed;
-		std::cout << "â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—\n";
-		std::cout << "â•‘       ê°œë³„ëª© CSV ë©”íƒ€ë°ì´í„° ì •ë³´                â•‘\n";
-		std::cout << "â• â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•£\n";
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
+		std::cout << "|       °³º°¸ñ CSV ¸ŞÅ¸µ¥ÀÌÅÍ Á¤º¸                |\n";
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
 
-		// 1. ê¸°ë³¸ ì •ë³´
-		std::cout << "â•‘ [íŒŒì¼ ê¸°ë³¸ ì •ë³´]                                 â•‘\n";
-		std::cout << "â•Ÿâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â•¢\n";
-		std::cout << "  ì „ì²´ í–‰       : " << d.totalRows << "\n";
-		std::cout << "  ë¡œë”© ì„±ê³µ     : " << d.loadedCount << "\n";
+		// 1. ±âº» Á¤º¸
+		std::cout << "| [ÆÄÀÏ ±âº» Á¤º¸]                                 |\n";
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
+		std::cout << "  ÀüÃ¼ Çà       : " << d.totalRows << "\n";
+		std::cout << "  ·Îµù ¼º°ø     : " << d.loadedCount << "\n";
 	
 		if (d.skippedCount > 0)
 		{
-			std::cout << "  ìŠ¤í‚µ (íŒŒì‹±ì‹¤íŒ¨): " << d.skippedCount << "\n";
+			std::cout << "  ½ºÅµ (ÆÄ½Ì½ÇÆĞ): " << d.skippedCount << "\n";
 		}
 
-		std::cout << "  ì»¬ëŸ¼ ìˆ˜       : " << d.headers.size() << "\n";
-		std::cout << "  ì»¬ëŸ¼ ëª©ë¡     : ";
+		std::cout << "  ÄÃ·³ ¼ö       : " << d.headers.size() << "\n";
+		std::cout << "  ÄÃ·³ ¸ñ·Ï     : ";
 
 		for (size_t i = 0; i < d.headers.size(); ++i)
 		{
@@ -204,39 +204,39 @@ public:
 
 		std::cout << "\n";
 
-		// 2. ì¢Œí‘œ ì •ë³´
-		std::cout << "â•Ÿâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â•¢\n";
-		std::cout << "â•‘ [ì¢Œí‘œ ë²”ìœ„]                                      â•‘\n";
-		std::cout << "â•Ÿâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â•¢\n";
+		// 2. ÁÂÇ¥ Á¤º¸
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
+		std::cout << "| [ÁÂÇ¥ ¹üÀ§]                                      |\n";
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
 		std::cout << std::setprecision(3);
-		std::cout << "  Min X (ì„œìª½)  : " << d.extent.MinX << "\n";
-		std::cout << "  Max X (ë™ìª½)  : " << d.extent.MaxX << "\n";
-		std::cout << "  Min Y (ë‚¨ìª½)  : " << d.extent.MinY << "\n";
-		std::cout << "  Max Y (ë¶ìª½)  : " << d.extent.MaxY << "\n";
-		std::cout << "  ê°€ë¡œ ë²”ìœ„     : " << (d.extent.MaxX - d.extent.MinX) << " m\n";
-		std::cout << "  ì„¸ë¡œ ë²”ìœ„     : " << (d.extent.MaxY - d.extent.MinY) << " m\n";
+		std::cout << "  Min X (¼­ÂÊ)  : " << d.extent.MinX << "\n";
+		std::cout << "  Max X (µ¿ÂÊ)  : " << d.extent.MaxX << "\n";
+		std::cout << "  Min Y (³²ÂÊ)  : " << d.extent.MinY << "\n";
+		std::cout << "  Max Y (ºÏÂÊ)  : " << d.extent.MaxY << "\n";
+		std::cout << "  °¡·Î ¹üÀ§     : " << (d.extent.MaxX - d.extent.MinX) << " m\n";
+		std::cout << "  ¼¼·Î ¹üÀ§     : " << (d.extent.MaxY - d.extent.MinY) << " m\n";
 
 		if (d.transformed)
 		{
-			std::cout << "  ì¢Œí‘œ ë³€í™˜     : EPSG:" << d.srcEpsg << " â†’ EPSG:" << d.dstEpsg << " (ë³€í™˜ ì™„ë£Œ)\n";
+			std::cout << "  ÁÂÇ¥ º¯È¯     : EPSG:" << d.srcEpsg << " -> EPSG:" << d.dstEpsg << " (º¯È¯ ¿Ï·á)\n";
 		}
 		else if (d.srcEpsg > 0)
 		{
-			std::cout << "  ì›ë³¸ ì¢Œí‘œê³„   : EPSG:" << d.srcEpsg << "\n";
+			std::cout << "  ¿øº» ÁÂÇ¥°è   : EPSG:" << d.srcEpsg << "\n";
 		}
 		else
 		{
-			std::cout << "  ì¢Œí‘œê³„        : ë¯¸ì§€ì • (ì¢Œí‘œ ë²”ìœ„ë¡œ ì¶”ì • í•„ìš”)\n";
+			std::cout << "  ÁÂÇ¥°è        : ¹ÌÁöÁ¤ (ÁÂÇ¥ ¹üÀ§·Î ÃßÁ¤ ÇÊ¿ä)\n";
 		}
 
-		// 6. ì í•©ì„± ê²€í† 
-		std::cout << "â•Ÿâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â•¢\n";
-		std::cout << "â•‘ [ìˆ˜ì¢… íŒë³„ ì í•©ì„± ê²€í† ]                          â•‘\n";
-		std::cout << "â•Ÿâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â•¢\n";
-		
+		// 6. ÀûÇÕ¼º °ËÅä
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
+		std::cout << "| [¼öÁ¾ ÆÇº° ÀûÇÕ¼º °ËÅä]                          |\n";
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
+
 		checkSuitability(d);
 
-		std::cout << "â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•\n";
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
 	}
 
 private:
@@ -264,7 +264,7 @@ private:
 
 	static std::string trim(const std::string& s)
 	{
-		// ì•ë’¤ ê³µë°±Â·ë”°ì˜´í‘œ ì œê±°
+		// ¾ÕµÚ °ø¹é¡¤µû¿ÈÇ¥ Á¦°Å
 
 		size_t start = s.find_first_not_of(" \t\r\n");
 
@@ -318,7 +318,7 @@ private:
 		return m;
 	}
 
-	// ì—¬ëŸ¬ ì´ë¦„ í›„ë³´ ì¤‘ ë§¤ì¹­ë˜ëŠ” ì»¬ëŸ¼ ì¸ë±ìŠ¤ ë°˜í™˜
+	// ¿©·¯ ÀÌ¸§ ÈÄº¸ Áß ¸ÅÄªµÇ´Â ÄÃ·³ ÀÎµ¦½º ¹İÈ¯
 	static int getCol(const TreeDataColumnMap& colMap, const std::vector<std::string>& names)
 	{
 		for (auto& name : names)
@@ -385,7 +385,7 @@ private:
 		}
 	}
 
-	// â”€â”€â”€ ì¢Œí‘œ ë³€í™˜ â”€â”€â”€
+	// ¦¡¦¡¦¡ ÁÂÇ¥ º¯È¯ ¦¡¦¡¦¡
 	static void transformCoordinates(TreeData& data, int srcEPSG, int dstEPSG)
 	{
 		OGRSpatialReference srcSRS;
@@ -400,14 +400,14 @@ private:
 
 		if (!pCT)
 		{
-			throw std::runtime_error("ì¢Œí‘œ ë³€í™˜ê¸° ìƒì„± ì‹¤íŒ¨: EPSG:" + std::to_string(srcEPSG) + " â†’ EPSG:" + std::to_string(dstEPSG));
+			throw std::runtime_error("ÁÂÇ¥ º¯È¯±â »ı¼º ½ÇÆĞ: EPSG:" + std::to_string(srcEPSG) + " -> EPSG:" + std::to_string(dstEPSG));
 		}
 
 		int total = (int)data.tps.size();
 		int success = 0;
 		int fail = 0;
 
-		// ë°°ì¹˜ ë³€í™˜ (1000ê°œì”©)
+		// ¹èÄ¡ º¯È¯ (1000°³¾¿)
 		const int batchSize = 1000;
 
 		for (int i = 0; i < total; i += batchSize)
@@ -447,18 +447,18 @@ private:
 		OGRCoordinateTransformation::DestroyCT(pCT);
 
 		data.transformed = true;
-		std::cout << "=== ì¢Œí‘œ ë³€í™˜ ì™„ë£Œ ===\n"
-			<< "  EPSG:" << srcEPSG << " â†’ EPSG:" << dstEPSG << "\n"
-			<< "  ì„±ê³µ: " << success << " / ì‹¤íŒ¨: " << fail << "\n";
+		std::cout << "=== ÁÂÇ¥ º¯È¯ ¿Ï·á ===\n"
+			<< "  EPSG:" << srcEPSG << " -> EPSG:" << dstEPSG << "\n"
+			<< "  ¼º°ø: " << success << " / ½ÇÆĞ: " << fail << "\n";
 	}
 
-	// â”€â”€â”€ í†µê³„ ê³„ì‚° â”€â”€â”€
+	// ¦¡¦¡¦¡ Åë°è °è»ê ¦¡¦¡¦¡
 	static void computeStats(TreeData& d)
 	{
 		auto& trees = d.tps;
 		int n = (int)trees.size();
 
-		// ë²”ìœ„
+		// ¹üÀ§
 		d.extent.MinX = d.extent.MaxX = trees[0].x;
 		d.extent.MinY = d.extent.MaxY = trees[0].y;
 
@@ -471,55 +471,55 @@ private:
 		}
 	}
 
-	// â”€â”€â”€ ì í•©ì„± ê²€í†  â”€â”€â”€
+	// ¦¡¦¡¦¡ ÀûÇÕ¼º °ËÅä ¦¡¦¡¦¡
 	static void checkSuitability(const TreeData& d)
 	{
 		bool allGood = true;
 
-		// ë‚˜ë¬´ ìˆ˜
+		// ³ª¹« ¼ö
 		if (d.loadedCount > 100)
 		{
-			std::cout << "  âœ“ ë‚˜ë¬´ " << d.loadedCount << "ê·¸ë£¨ â†’ ì¶©ë¶„í•œ í•™ìŠµ ë°ì´í„°\n";
+			std::cout << "  v ³ª¹« " << d.loadedCount << "±×·ç -> ÃæºĞÇÑ ÇĞ½À µ¥ÀÌÅÍ\n";
 		}
 		else
 		{
-			std::cout << "  âš  ë‚˜ë¬´ " << d.loadedCount << "ê·¸ë£¨ â†’ í•™ìŠµ ë°ì´í„°ê°€ ë¶€ì¡±í•  ìˆ˜ ìˆìŠµë‹ˆë‹¤.\n";
+			std::cout << "  ! ³ª¹« " << d.loadedCount << "±×·ç -> ÇĞ½À µ¥ÀÌÅÍ°¡ ºÎÁ·ÇÒ ¼ö ÀÖ½À´Ï´Ù.\n";
 			allGood = false;
 		}
 
-		// ì¢Œí‘œê³„ í™•ì¸
+		// ÁÂÇ¥°è È®ÀÎ
 		if (d.transformed)
 		{
-			std::cout << "  âœ“ ì¢Œí‘œ ë³€í™˜ ì™„ë£Œ (EPSG:" << d.srcEpsg << " â†’ EPSG:" << d.dstEpsg << ")\n";
+			std::cout << "  v ÁÂÇ¥ º¯È¯ ¿Ï·á (EPSG:" << d.srcEpsg << " -> EPSG:" << d.dstEpsg << ")\n";
 		}
 		else if (d.srcEpsg == 0)
 		{
-			std::cout << "  âš  ì¢Œí‘œê³„ ë¯¸ì§€ì •\n"
-				<< "    â†’ ì¢Œí‘œ ë²”ìœ„: X[" << std::setprecision(0) << d.extent.MinX << "~" << d.extent.MaxX << "] Y[" << d.extent.MinY << "~" << d.extent.MaxY << "]\n"
-				<< "    â†’ ì„ìƒë„/í•­ê³µì‚¬ì§„ê³¼ ì¢Œí‘œê³„ê°€ ì¼ì¹˜í•˜ëŠ”ì§€ í™•ì¸í•˜ì„¸ìš”.\n";
+			std::cout << "  ! ÁÂÇ¥°è ¹ÌÁöÁ¤\n"
+				<< "    -> ÁÂÇ¥ ¹üÀ§: X[" << std::setprecision(0) << d.extent.MinX << "~" << d.extent.MaxX << "] Y[" << d.extent.MinY << "~" << d.extent.MaxY << "]\n"
+				<< "    -> ÀÓ»óµµ/Ç×°ø»çÁø°ú ÁÂÇ¥°è°¡ ÀÏÄ¡ÇÏ´ÂÁö È®ÀÎÇÏ¼¼¿ä.\n";
 			
 			allGood = false;
 		}
 
-		// ìŠ¤í‚µ ë¹„ìœ¨
+		// ½ºÅµ ºñÀ²
 		if ((d.totalRows > 0) && (d.skippedCount > 0))
 		{
 			double skipPct = 100.0 * d.skippedCount / d.totalRows;
 
 			if (skipPct > 5.0)
 			{
-				std::cout << "  âš  íŒŒì‹± ì‹¤íŒ¨ " << std::setprecision(1) << skipPct << "% â†’ CSV ë°ì´í„° í’ˆì§ˆ í™•ì¸ í•„ìš”\n";
+				std::cout << "  ! ÆÄ½Ì ½ÇÆĞ " << std::setprecision(1) << skipPct << "% -> CSV µ¥ÀÌÅÍ Ç°Áú È®ÀÎ ÇÊ¿ä\n";
 				allGood = false;
 			}
 		}
 
 		if (allGood)
 		{
-			std::cout << "\n  â˜… ì¢…í•©: ìˆ˜ì¢… íŒë³„ í”„ë¡œì íŠ¸ì— ì í•©í•œ ê°œë³„ëª© ë°ì´í„°ì…ë‹ˆë‹¤.\n";
+			std::cout << "\n  !! Á¾ÇÕ: ¼öÁ¾ ÆÇº° ÇÁ·ÎÁ§Æ®¿¡ ÀûÇÕÇÑ °³º°¸ñ µ¥ÀÌÅÍÀÔ´Ï´Ù.\n";
 		}
 		else
 		{
-			std::cout << "\n  â˜… ì¢…í•©: ìœ„ ì£¼ì˜ì‚¬í•­ì„ í™•ì¸/ë³´ì™„í•œ í›„ ì‚¬ìš©í•˜ì„¸ìš”.\n";
+			std::cout << "\n  !! Á¾ÇÕ: À§ ÁÖÀÇ»çÇ×À» È®ÀÎ/º¸¿ÏÇÑ ÈÄ »ç¿ëÇÏ¼¼¿ä.\n";
 		}
 	}
 };

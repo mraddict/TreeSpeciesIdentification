@@ -1,32 +1,32 @@
-ï»¿#pragma once
+#pragma once
 
 #include "TSICommon.h"
 #include <gdalwarper.h>
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-//  ì¢Œí‘œ ë³€í™˜ ì˜µì…˜
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+//  ÁÂÇ¥ º¯È¯ ¿É¼Ç
+// ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
 struct ReprojectOptions
 {
-	int srcEpsg = 0;									// ì›ë³¸ EPSG (0ì´ë©´ íŒŒì¼ì—ì„œ ìë™ ê°ì§€)
-	int dstEpsg = 5179;								// ëŒ€ìƒ EPSG (ê¸°ë³¸: í•œêµ­ í†µí•©ì¢Œí‘œê³„)
-	double dstResX = 0.0;							// ëŒ€ìƒ í•´ìƒë„ X (0ì´ë©´ ìë™ ê³„ì‚°)
-	double dstResY = 0.0;							// ëŒ€ìƒ í•´ìƒë„ Y (0ì´ë©´ ìë™ ê³„ì‚°)
-	std::string resampleAlg = "bilinear";		// ë¦¬ìƒ˜í”Œë§: near, bilinear, cubic, cubicspline, lanczos
-	std::string format = "GTiff";					// ì¶œë ¥ í¬ë§·
-	bool compress = true;							// ì¶œë ¥ ì••ì¶• (LZW)
-	int numThreads = 4;							// ì›Œí”„ ë³‘ë ¬ ìŠ¤ë ˆë“œ ìˆ˜
-	double noDataValue = 0.0;					// NoData ê°’
-	bool hasNoData = false;						// NoData ì‚¬ìš© ì—¬ë¶€
-	double memoryLimit = 512.0;				// ì›Œí”„ ë©”ëª¨ë¦¬ ì œí•œ (MB)
+	int srcEpsg = 0;									// ¿øº» EPSG (0ÀÌ¸é ÆÄÀÏ¿¡¼­ ÀÚµ¿ °¨Áö)
+	int dstEpsg = 5179;								// ´ë»ó EPSG (±âº»: ÇÑ±¹ ÅëÇÕÁÂÇ¥°è)
+	double dstResX = 0.0;							// ´ë»ó ÇØ»óµµ X (0ÀÌ¸é ÀÚµ¿ °è»ê)
+	double dstResY = 0.0;							// ´ë»ó ÇØ»óµµ Y (0ÀÌ¸é ÀÚµ¿ °è»ê)
+	std::string resampleAlg = "bilinear";		// ¸®»ùÇÃ¸µ: near, bilinear, cubic, cubicspline, lanczos
+	std::string format = "GTiff";					// Ãâ·Â Æ÷¸Ë
+	bool compress = true;							// Ãâ·Â ¾ĞÃà (LZW)
+	int numThreads = 4;							// ¿öÇÁ º´·Ä ½º·¹µå ¼ö
+	double noDataValue = 0.0;					// NoData °ª
+	bool hasNoData = false;						// NoData »ç¿ë ¿©ºÎ
+	double memoryLimit = 512.0;				// ¿öÇÁ ¸Ş¸ğ¸® Á¦ÇÑ (MB)
 };
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-//  ë³€í™˜ ê²°ê³¼ ë¦¬í¬íŠ¸
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+//  º¯È¯ °á°ú ¸®Æ÷Æ®
+// ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
 struct ReprojectReport
 {
-	// ì›ë³¸ ì •ë³´
+	// ¿øº» Á¤º¸
 	int srcEpsg = 0;
 	int srcWidth = 0;
 	int srcHeight = 0;
@@ -37,7 +37,7 @@ struct ReprojectReport
 	double srcPixelW = 0;
 	double srcPixelH = 0;
 
-	// ë³€í™˜ í›„ ì •ë³´
+	// º¯È¯ ÈÄ Á¤º¸
 	int dstEpsg = 0;
 	int dstWidth = 0;
 	int dstHeight = 0;
@@ -48,7 +48,7 @@ struct ReprojectReport
 	double dstPixelW = 0;
 	double dstPixelH = 0;
 
-	// ê²€ì¦
+	// °ËÁõ
 	bool success = false;
 	std::string message;
 };
@@ -62,19 +62,19 @@ public:
 		GDALAllRegister();
 		ReprojectReport report;
 
-		// â”€â”€ 1. ì›ë³¸ íŒŒì¼ ì—´ê¸° â”€â”€
+		// ¦¡¦¡ 1. ¿øº» ÆÄÀÏ ¿­±â ¦¡¦¡
 		GDALDataset* srcDs = (GDALDataset*)GDALOpen(srcPath.c_str(), GA_ReadOnly);
 
 		if (!srcDs)
 		{
-			throw std::runtime_error("ì›ë³¸ íŒŒì¼ ì—´ê¸° ì‹¤íŒ¨: " + srcPath);
+			throw std::runtime_error("¿øº» ÆÄÀÏ ¿­±â ½ÇÆĞ: " + srcPath);
 		}
 
 		report.srcWidth = srcDs->GetRasterXSize();
 		report.srcHeight = srcDs->GetRasterYSize();
 		int nBands = srcDs->GetRasterCount();
 
-		// ì›ë³¸ GeoTransform
+		// ¿øº» GeoTransform
 		double srcGT[6];
 		srcDs->GetGeoTransform(srcGT);
 
@@ -90,11 +90,11 @@ public:
 			std::swap(report.srcMinY, report.srcMaxY);
 		}
 
-		// â”€â”€ 2. ì¢Œí‘œê³„ ì„¤ì • â”€â”€
+		// ¦¡¦¡ 2. ÁÂÇ¥°è ¼³Á¤ ¦¡¦¡
 		OGRSpatialReference srcSRS;
 		OGRSpatialReference dstSRS;
 
-		// ì›ë³¸ ì¢Œí‘œê³„
+		// ¿øº» ÁÂÇ¥°è
 		if (opts.srcEpsg > 0)
 		{
 			srcSRS.importFromEPSG(opts.srcEpsg);
@@ -113,23 +113,23 @@ public:
 			else
 			{
 				GDALClose(srcDs);
-				throw std::runtime_error("ì›ë³¸ íŒŒì¼ì— ì¢Œí‘œê³„ ì •ë³´ê°€ ì—†ìŠµë‹ˆë‹¤. srcEpsgë¥¼ ì§€ì •í•˜ì„¸ìš”.");
+				throw std::runtime_error("¿øº» ÆÄÀÏ¿¡ ÁÂÇ¥°è Á¤º¸°¡ ¾ø½À´Ï´Ù. srcEpsg¸¦ ÁöÁ¤ÇÏ¼¼¿ä.");
 			}
 		}
 
-		// ëŒ€ìƒ ì¢Œí‘œê³„
+		// ´ë»ó ÁÂÇ¥°è
 		dstSRS.importFromEPSG(opts.dstEpsg);
 		report.dstEpsg = opts.dstEpsg;
 
-		// WKT ë¬¸ìì—´ ìƒì„±
+		// WKT ¹®ÀÚ¿­ »ı¼º
 		char* srcWkt = nullptr;
 		char* dstWkt = nullptr;
 		srcSRS.exportToWkt(&srcWkt);
 		dstSRS.exportToWkt(&dstWkt);
 
-		std::cout << "=== ì¢Œí‘œê³„ ë³€í™˜ ì‹œì‘ ===\n" << "  ì›ë³¸: EPSG:" << report.srcEpsg << " (" << report.srcWidth << "x" << report.srcHeight << ", " << nBands << "ë°´ë“œ)\n" << "  ëŒ€ìƒ: EPSG:" << report.dstEpsg << "\n";
+		std::cout << "=== ÁÂÇ¥°è º¯È¯ ½ÃÀÛ ===\n" << "  ¿øº»: EPSG:" << report.srcEpsg << " (" << report.srcWidth << "x" << report.srcHeight << ", " << nBands << "¹êµå)\n" << "  ´ë»ó: EPSG:" << report.dstEpsg << "\n";
 
-		// â”€â”€ 3. ëŒ€ìƒ ì˜ì—­ ë° í•´ìƒë„ ê³„ì‚° â”€â”€
+		// ¦¡¦¡ 3. ´ë»ó ¿µ¿ª ¹× ÇØ»óµµ °è»ê ¦¡¦¡
 		double dstGT[6];
 		int dstWidth, dstHeight;
 		computeTargetExtent(srcDs, srcWkt, dstWkt, opts.dstResX, opts.dstResY, dstGT, dstWidth, dstHeight);
@@ -148,12 +148,12 @@ public:
 			std::swap(report.dstMinY, report.dstMaxY);
 		}
 
-		std::cout << "  ë³€í™˜ í›„ í¬ê¸°: " << dstWidth << "x" << dstHeight << "\n"
-			<< "  ë³€í™˜ í›„ í•´ìƒë„: " << dstGT[1] << " m/pixel\n"
-			<< "  ë³€í™˜ í›„ ë²”ìœ„: X[" << std::fixed << std::setprecision(3)
+		std::cout << "  º¯È¯ ÈÄ Å©±â: " << dstWidth << "x" << dstHeight << "\n"
+			<< "  º¯È¯ ÈÄ ÇØ»óµµ: " << dstGT[1] << " m/pixel\n"
+			<< "  º¯È¯ ÈÄ ¹üÀ§: X[" << std::fixed << std::setprecision(3)
 			<< report.dstMinX << " ~ " << report.dstMaxX << "] Y[" << report.dstMinY << " ~ " << report.dstMaxY << "]\n";
 
-		// â”€â”€ 4. ì¶œë ¥ íŒŒì¼ ìƒì„± â”€â”€
+		// ¦¡¦¡ 4. Ãâ·Â ÆÄÀÏ »ı¼º ¦¡¦¡
 		GDALDriver* driver = GetGDALDriverManager()->GetDriverByName(opts.format.c_str());
 
 		if (!driver)
@@ -162,10 +162,10 @@ public:
 			CPLFree(dstWkt);
 			GDALClose(srcDs);
 
-			throw std::runtime_error("GDAL ë“œë¼ì´ë²„ë¥¼ ì°¾ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤: " + opts.format);
+			throw std::runtime_error("GDAL µå¶óÀÌ¹ö¸¦ Ã£À» ¼ö ¾ø½À´Ï´Ù: " + opts.format);
 		}
 
-		// ìƒì„± ì˜µì…˜
+		// »ı¼º ¿É¼Ç
 		char** createOpts = nullptr;
 
 		if (opts.compress && opts.format == "GTiff")
@@ -187,13 +187,13 @@ public:
 			CPLFree(dstWkt);
 			GDALClose(srcDs);
 
-			throw std::runtime_error("ì¶œë ¥ íŒŒì¼ ìƒì„± ì‹¤íŒ¨: " + dstPath);
+			throw std::runtime_error("Ãâ·Â ÆÄÀÏ »ı¼º ½ÇÆĞ: " + dstPath);
 		}
 
 		dstDs->SetGeoTransform(dstGT);
 		dstDs->SetProjection(dstWkt);
 
-		// NoData ì„¤ì •
+		// NoData ¼³Á¤
 		if (opts.hasNoData)
 		{
 			for (int b = 1; b <= nBands; ++b)
@@ -202,12 +202,12 @@ public:
 			}
 		}
 
-		// â”€â”€ 5. ì›Œí”„ (ì¢Œí‘œ ë³€í™˜ + ë¦¬ìƒ˜í”Œë§) ì‹¤í–‰ â”€â”€
-		std::cout << "  ë¦¬ìƒ˜í”Œë§ ë°©ë²•: " << opts.resampleAlg << "\n" << "  ì›Œí”„ ì‹¤í–‰ ì¤‘...\n";
+		// ¦¡¦¡ 5. ¿öÇÁ (ÁÂÇ¥ º¯È¯ + ¸®»ùÇÃ¸µ) ½ÇÇà ¦¡¦¡
+		std::cout << "  ¸®»ùÇÃ¸µ ¹æ¹ı: " << opts.resampleAlg << "\n" << "  ¿öÇÁ ½ÇÇà Áß...\n";
 
 		GDALResampleAlg resAlg = parseResampleAlg(opts.resampleAlg);
 
-		// ì›Œí”„ ì˜µì…˜ ì„¤ì •
+		// ¿öÇÁ ¿É¼Ç ¼³Á¤
 		GDALWarpOptions* warpOpts = GDALCreateWarpOptions();
 		warpOpts->hSrcDS = srcDs;
 		warpOpts->hDstDS = dstDs;
@@ -225,14 +225,14 @@ public:
 		warpOpts->dfWarpMemoryLimit = opts.memoryLimit * 1024 * 1024;
 		warpOpts->pfnProgress = GDALTermProgress;
 
-		// ë©€í‹°ìŠ¤ë ˆë“œ ì„¤ì •
+		// ¸ÖÆ¼½º·¹µå ¼³Á¤
 		if (opts.numThreads > 1)
 		{
 			std::string threadStr = "NUM_THREADS=" + std::to_string(opts.numThreads);
 			warpOpts->papszWarpOptions = CSLSetNameValue(warpOpts->papszWarpOptions, "NUM_THREADS", std::to_string(opts.numThreads).c_str());
 		}
 
-		// ì¢Œí‘œ ë³€í™˜ê¸° ìƒì„±
+		// ÁÂÇ¥ º¯È¯±â »ı¼º
 		warpOpts->pTransformerArg = GDALCreateGenImgProjTransformer(srcDs, srcWkt, dstDs, dstWkt, FALSE, 0.0, 1);
 
 		if (!warpOpts->pTransformerArg)
@@ -243,12 +243,12 @@ public:
 			GDALClose(dstDs);
 			GDALClose(srcDs);
 
-			throw std::runtime_error("ì¢Œí‘œ ë³€í™˜ê¸° ìƒì„± ì‹¤íŒ¨");
+			throw std::runtime_error("ÁÂÇ¥ º¯È¯±â »ı¼º ½ÇÆĞ");
 		}
 
 		warpOpts->pfnTransformer = GDALGenImgProjTransform;
 
-		// ì›Œí”„ ì‹¤í–‰
+		// ¿öÇÁ ½ÇÇà
 		GDALWarpOperation warpOp;
 		CPLErr err = warpOp.Initialize(warpOpts);
 
@@ -257,7 +257,7 @@ public:
 			err = warpOp.ChunkAndWarpImage(0, 0, dstWidth, dstHeight);
 		}
 
-		// ì •ë¦¬
+		// Á¤¸®
 		GDALDestroyGenImgProjTransformer(warpOpts->pTransformerArg);
 		GDALDestroyWarpOptions(warpOpts);
 		CPLFree(srcWkt);
@@ -269,19 +269,19 @@ public:
 		if (err != CE_None)
 		{
 			report.success = false;
-			report.message = "ì›Œí”„ ì‹¤í–‰ ì¤‘ ì˜¤ë¥˜ê°€ ë°œìƒí–ˆìŠµë‹ˆë‹¤.";
+			report.message = "¿öÇÁ ½ÇÇà Áß ¿À·ù°¡ ¹ß»ıÇß½À´Ï´Ù.";
 
 			throw std::runtime_error(report.message);
 		}
 
 		report.success = true;
-		report.message = "ë³€í™˜ ì™„ë£Œ";
-		std::cout << "  â†’ ë³€í™˜ ì™„ë£Œ: " << dstPath << "\n";
+		report.message = "º¯È¯ ¿Ï·á";
+		std::cout << "  ¡æ º¯È¯ ¿Ï·á: " << dstPath << "\n";
 
 		return report;
 	}
 
-	// â”€â”€â”€ ë³€í™˜ ê²°ê³¼ ê²€ì¦ â”€â”€â”€
+	// ¦¡¦¡¦¡ º¯È¯ °á°ú °ËÁõ ¦¡¦¡¦¡
 	static void verify(const std::string& dstPath, int expectedEpsg, double refMinX, double refMaxX, double refMinY, double refMaxY)
 	{
 		GDALAllRegister();
@@ -290,13 +290,13 @@ public:
 
 		if (!ds)
 		{
-			throw std::runtime_error("ë³€í™˜ ê²°ê³¼ íŒŒì¼ ì—´ê¸° ì‹¤íŒ¨: " + dstPath);
+			throw std::runtime_error("º¯È¯ °á°ú ÆÄÀÏ ¿­±â ½ÇÆĞ: " + dstPath);
 		}
 
 		std::cout << std::fixed << std::setprecision(3);
-		std::cout << "\n=== ë³€í™˜ ê²°ê³¼ ê²€ì¦ ===\n";
+		std::cout << "\n=== º¯È¯ °á°ú °ËÁõ ===\n";
 
-		// EPSG í™•ì¸
+		// EPSG È®ÀÎ
 		OGRSpatialReference srs;
 		const char* wkt = ds->GetProjectionRef();
 
@@ -310,14 +310,14 @@ public:
 
 		if (epsg == expectedEpsg)
 		{
-			std::cout << "  âœ“ ì¢Œí‘œê³„ ì¼ì¹˜: EPSG:" << epsg << "\n";
+			std::cout << "  v ÁÂÇ¥°è ÀÏÄ¡: EPSG:" << epsg << "\n";
 		}
 		else
 		{
-			std::cout << "  âœ— ì¢Œí‘œê³„ ë¶ˆì¼ì¹˜! ê¸°ëŒ€: EPSG:" << expectedEpsg << " / ì‹¤ì œ: EPSG:" << epsg << "\n";
+			std::cout << "  x ÁÂÇ¥°è ºÒÀÏÄ¡! ±â´ë: EPSG:" << expectedEpsg << " / ½ÇÁ¦: EPSG:" << epsg << "\n";
 		}
 
-		// ë²”ìœ„ í™•ì¸
+		// ¹üÀ§ È®ÀÎ
 		double gt[6];
 		ds->GetGeoTransform(gt);
 		int w = ds->GetRasterXSize();
@@ -333,10 +333,10 @@ public:
 			std::swap(dstMinY, dstMaxY);
 		}
 
-		std::cout << "  ë³€í™˜ í›„ ë²”ìœ„:\n" << "    X: [" << dstMinX << " ~ " << dstMaxX << "]\n" << "    Y: [" << dstMinY << " ~ " << dstMaxY << "]\n";
-		std::cout << "  ì„ìƒë„ ë²”ìœ„:\n" << "    X: [" << refMinX << " ~ " << refMaxX << "]\n" << "    Y: [" << refMinY << " ~ " << refMaxY << "]\n";
+		std::cout << "  º¯È¯ ÈÄ ¹üÀ§:\n" << "    X: [" << dstMinX << " ~ " << dstMaxX << "]\n" << "    Y: [" << dstMinY << " ~ " << dstMaxY << "]\n";
+		std::cout << "  ÀÓ»óµµ ¹üÀ§:\n" << "    X: [" << refMinX << " ~ " << refMaxX << "]\n" << "    Y: [" << refMinY << " ~ " << refMaxY << "]\n";
 
-		// ê²¹ì¹¨ ì˜ì—­ ê³„ì‚°
+		// °ãÄ§ ¿µ¿ª °è»ê
 		double overlapMinX = std::max(dstMinX, refMinX);
 		double overlapMaxX = std::min(dstMaxX, refMaxX);
 		double overlapMinY = std::max(dstMinY, refMinY);
@@ -348,83 +348,83 @@ public:
 			double aerialArea = (dstMaxX - dstMinX) * (dstMaxY - dstMinY);
 			double forestArea = (refMaxX - refMinX) * (refMaxY - refMinY);
 
-			std::cout << "  âœ“ ë²”ìœ„ ê²¹ì¹¨ í™•ì¸\n"
-				<< "    ê²¹ì¹¨ ì˜ì—­: X[" << overlapMinX << " ~ " << overlapMaxX << "] Y[" << overlapMinY << " ~ " << overlapMaxY << "]\n"
-				<< "    í•­ê³µì‚¬ì§„ ëŒ€ë¹„: " << std::setprecision(1) << (overlapArea / aerialArea * 100.0) << "%\n"
-				<< "    ì„ìƒë„ ëŒ€ë¹„  : " << (overlapArea / forestArea * 100.0) << "%\n";
+			std::cout << "  v ¹üÀ§ °ãÄ§ È®ÀÎ\n"
+				<< "    °ãÄ§ ¿µ¿ª: X[" << overlapMinX << " ~ " << overlapMaxX << "] Y[" << overlapMinY << " ~ " << overlapMaxY << "]\n"
+				<< "    Ç×°ø»çÁø ´ëºñ: " << std::setprecision(1) << (overlapArea / aerialArea * 100.0) << "%\n"
+				<< "    ÀÓ»óµµ ´ëºñ  : " << (overlapArea / forestArea * 100.0) << "%\n";
 		}
 		else
 		{
-			std::cout << "  âœ— ë²”ìœ„ ê²¹ì¹¨ ì—†ìŒ! ë³€í™˜ì´ ì˜¬ë°”ë¥¸ì§€ í™•ì¸í•˜ì„¸ìš”.\n";
+			std::cout << "  x ¹üÀ§ °ãÄ§ ¾øÀ½! º¯È¯ÀÌ ¿Ã¹Ù¸¥Áö È®ÀÎÇÏ¼¼¿ä.\n";
 		}
 
-		// í•´ìƒë„
-		std::cout << std::setprecision(4) << "  í•´ìƒë„: " << gt[1] << " m/pixel\n" << "  í¬ê¸°  : " << w << " x " << h << " pixels\n";
+		// ÇØ»óµµ
+		std::cout << std::setprecision(4) << "  ÇØ»óµµ: " << gt[1] << " m/pixel\n" << "  Å©±â  : " << w << " x " << h << " pixels\n";
 
-		// íŒŒì¼ í¬ê¸°
+		// ÆÄÀÏ Å©±â
 		GDALClose(ds);
 
-		std::cout << "  â†’ ê²€ì¦ ì™„ë£Œ\n";
+		std::cout << "  -> °ËÁõ ¿Ï·á\n";
 	}
 
-	// â”€â”€â”€ ë¦¬í¬íŠ¸ ì¶œë ¥ â”€â”€â”€
+	// ¦¡¦¡¦¡ ¸®Æ÷Æ® Ãâ·Â ¦¡¦¡¦¡
 	static void printReport(const ReprojectReport& r)
 	{
 		std::cout << std::fixed << std::setprecision(3);
-		std::cout << "\nâ•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—\n";
-		std::cout << "â•‘       ì¢Œí‘œê³„ ë³€í™˜ ê²°ê³¼ ë¦¬í¬íŠ¸                â•‘\n";
-		std::cout << "â• â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•£\n";
+		std::cout << "\n------------------------------------------------------------------------------------------------------\n";
+		std::cout << "|       ÁÂÇ¥°è º¯È¯ °á°ú ¸®Æ÷Æ®                |\n";
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
 
-		std::cout << "â•‘ [ì›ë³¸]                                       â•‘\n";
-		std::cout << "â•Ÿâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â•¢\n";
+		std::cout << "| [¿øº»]                                       |\n";
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
 		std::cout << "  EPSG          : " << r.srcEpsg << "\n";
-		std::cout << "  í¬ê¸°          : " << r.srcWidth << " x " << r.srcHeight << "\n";
-		std::cout << "  í•´ìƒë„        : " << r.srcPixelW << " m/pixel\n";
-		std::cout << "  ë²”ìœ„ X        : [" << r.srcMinX << " ~ " << r.srcMaxX << "]\n";
-		std::cout << "  ë²”ìœ„ Y        : [" << r.srcMinY << " ~ " << r.srcMaxY << "]\n";
+		std::cout << "  Å©±â          : " << r.srcWidth << " x " << r.srcHeight << "\n";
+		std::cout << "  ÇØ»óµµ        : " << r.srcPixelW << " m/pixel\n";
+		std::cout << "  ¹üÀ§ X        : [" << r.srcMinX << " ~ " << r.srcMaxX << "]\n";
+		std::cout << "  ¹üÀ§ Y        : [" << r.srcMinY << " ~ " << r.srcMaxY << "]\n";
 
-		std::cout << "â•Ÿâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â•¢\n";
-		std::cout << "â•‘ [ë³€í™˜ ê²°ê³¼]                                  â•‘\n";
-		std::cout << "â•Ÿâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â•¢\n";
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
+		std::cout << "| [º¯È¯ °á°ú]                                  |\n";
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
 		std::cout << "  EPSG          : " << r.dstEpsg << "\n";
-		std::cout << "  í¬ê¸°          : " << r.dstWidth << " x " << r.dstHeight << "\n";
-		std::cout << "  í•´ìƒë„        : " << r.dstPixelW << " m/pixel\n";
-		std::cout << "  ë²”ìœ„ X        : [" << r.dstMinX << " ~ " << r.dstMaxX << "]\n";
-		std::cout << "  ë²”ìœ„ Y        : [" << r.dstMinY << " ~ " << r.dstMaxY << "]\n";
+		std::cout << "  Å©±â          : " << r.dstWidth << " x " << r.dstHeight << "\n";
+		std::cout << "  ÇØ»óµµ        : " << r.dstPixelW << " m/pixel\n";
+		std::cout << "  ¹üÀ§ X        : [" << r.dstMinX << " ~ " << r.dstMaxX << "]\n";
+		std::cout << "  ¹üÀ§ Y        : [" << r.dstMinY << " ~ " << r.dstMaxY << "]\n";
 
-		std::cout << "â•Ÿâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â•¢\n";
-		std::cout << "  ìƒíƒœ          : "
-			<< (r.success ? "âœ“ ì„±ê³µ" : "âœ— ì‹¤íŒ¨") << "\n";
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
+		std::cout << "  »óÅÂ          : "
+			<< (r.success ? "v ¼º°ø" : "x ½ÇÆĞ") << "\n";
 		if (!r.message.empty())
-			std::cout << "  ë©”ì‹œì§€        : " << r.message << "\n";
+			std::cout << "  ¸Ş½ÃÁö        : " << r.message << "\n";
 
-		std::cout << "â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•\n";
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
 	}
 
 private:
 
-	// ëŒ€ìƒ ì˜ì—­ ë° í•´ìƒë„ ìë™ ê³„ì‚°
+	// ´ë»ó ¿µ¿ª ¹× ÇØ»óµµ ÀÚµ¿ °è»ê
 	static void computeTargetExtent(GDALDataset* srcDs, const char* srcWkt, const char* dstWkt, double reqResX, double reqResY, double* dstGT, int& dstWidth, int& dstHeight)
 	{
-		// ì›ë³¸ 4 ì½”ë„ˆ ì¢Œí‘œë¥¼ ëŒ€ìƒ ì¢Œí‘œê³„ë¡œ ë³€í™˜
+		// ¿øº» 4 ÄÚ³Ê ÁÂÇ¥¸¦ ´ë»ó ÁÂÇ¥°è·Î º¯È¯
 		double srcGT[6];
 		srcDs->GetGeoTransform(srcGT);
 		int srcW = srcDs->GetRasterXSize();
 		int srcH = srcDs->GetRasterYSize();
 
-		// ì›ë³¸ ì½”ë„ˆ ì¢Œí‘œ (+ ì¤‘ê°„ì  í¬í•¨í•´ ì™œê³¡ ë³´ì •)
+		// ¿øº» ÄÚ³Ê ÁÂÇ¥ (+ Áß°£Á¡ Æ÷ÇÔÇØ ¿Ö°î º¸Á¤)
 		const int nPts = 9;
 		double xs[nPts] =
 		{
-			srcGT[0],                                    // ì¢Œìƒ
-			srcGT[0] + srcW * 0.5 * srcGT[1],           // ìƒë‹¨ ì¤‘ì•™
-			srcGT[0] + srcW * srcGT[1],                  // ìš°ìƒ
-			srcGT[0],                                    // ì¢Œì¸¡ ì¤‘ì•™
-			srcGT[0] + srcW * 0.5 * srcGT[1],           // ì¤‘ì•™
-			srcGT[0] + srcW * srcGT[1],                  // ìš°ì¸¡ ì¤‘ì•™
-			srcGT[0],                                    // ì¢Œí•˜
-			srcGT[0] + srcW * 0.5 * srcGT[1],           // í•˜ë‹¨ ì¤‘ì•™
-			srcGT[0] + srcW * srcGT[1],                  // ìš°í•˜
+			srcGT[0],                                    // ÁÂ»ó
+			srcGT[0] + srcW * 0.5 * srcGT[1],           // »ó´Ü Áß¾Ó
+			srcGT[0] + srcW * srcGT[1],                  // ¿ì»ó
+			srcGT[0],                                    // ÁÂÃø Áß¾Ó
+			srcGT[0] + srcW * 0.5 * srcGT[1],           // Áß¾Ó
+			srcGT[0] + srcW * srcGT[1],                  // ¿ìÃø Áß¾Ó
+			srcGT[0],                                    // ÁÂÇÏ
+			srcGT[0] + srcW * 0.5 * srcGT[1],           // ÇÏ´Ü Áß¾Ó
+			srcGT[0] + srcW * srcGT[1],                  // ¿ìÇÏ
 		};
 
 		double ys[nPts] =
@@ -443,12 +443,12 @@ private:
 		double zs[nPts] = {};
 		int successes[nPts] = {};
 
-		// ì¢Œí‘œ ë³€í™˜
+		// ÁÂÇ¥ º¯È¯
 		OGRSpatialReference oSrcSRS, oDstSRS;
 		oSrcSRS.importFromWkt(srcWkt);
 		oDstSRS.importFromWkt(dstWkt);
 
-		// GDAL 3.x: ì¶• ìˆœì„œ ëª…ì‹œì  ì„¤ì • (ì „í†µì  lon/lat â†’ X/Y)
+		// GDAL 3.x: Ãà ¼ø¼­ ¸í½ÃÀû ¼³Á¤ (ÀüÅëÀû lon/lat ¡æ X/Y)
 		oSrcSRS.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
 		oDstSRS.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
 
@@ -456,13 +456,13 @@ private:
 
 		if (!ct)
 		{
-			throw std::runtime_error("ì¢Œí‘œ ë³€í™˜ê¸° ìƒì„± ì‹¤íŒ¨ (EPSG:" + std::to_string(0) + " â†’ EPSG:" + std::to_string(0) + ")");
+			throw std::runtime_error("ÁÂÇ¥ º¯È¯±â »ı¼º ½ÇÆĞ (EPSG:" + std::to_string(0) + " ¡æ EPSG:" + std::to_string(0) + ")");
 		}
 
 		ct->Transform(nPts, xs, ys, zs, successes);
 		OGRCoordinateTransformation::DestroyCT(ct);
 
-		// ë³€í™˜ëœ ë²”ìœ„ ê³„ì‚°
+		// º¯È¯µÈ ¹üÀ§ °è»ê
 		double minX = xs[0], maxX = xs[0];
 		double minY = ys[0], maxY = ys[0];
 		for (int i = 1; i < nPts; ++i)
@@ -478,14 +478,14 @@ private:
 			maxY = std::max(maxY, ys[i]);
 		}
 
-		// í•´ìƒë„ ê²°ì •
+		// ÇØ»óµµ °áÁ¤
 		double resX = reqResX;
 		double resY = reqResY;
 
 		if (resX <= 0.0 || resY <= 0.0)
 		{
-			// ì›ë³¸ í•´ìƒë„ë¥¼ ëŒ€ìƒ ì¢Œí‘œê³„ì—ì„œ ì¶”ì •
-			// ì¤‘ì•™ ê·¼ì²˜ 1í”½ì…€ì˜ ë³€í™˜ í›„ í¬ê¸° ì‚¬ìš©
+			// ¿øº» ÇØ»óµµ¸¦ ´ë»ó ÁÂÇ¥°è¿¡¼­ ÃßÁ¤
+			// Áß¾Ó ±ÙÃ³ 1ÇÈ¼¿ÀÇ º¯È¯ ÈÄ Å©±â »ç¿ë
 			double cx1 = srcGT[0] + (srcW / 2) * srcGT[1];
 			double cy1 = srcGT[3] + (srcH / 2) * srcGT[5];
 			double cx2 = srcGT[0] + (srcW / 2 + 1) * srcGT[1];
@@ -510,7 +510,7 @@ private:
 				OGRCoordinateTransformation::DestroyCT(ct2);
 				resX = std::abs(txs[1] - txs[0]);
 				resY = std::abs(tys[1] - tys[0]);
-				// ê°€ì¥ ê°€ê¹Œìš´ ê¹”ë”í•œ ê°’ìœ¼ë¡œ ë°˜ì˜¬ë¦¼ (0.05m ë‹¨ìœ„)
+				// °¡Àå °¡±î¿î ±ò²ûÇÑ °ªÀ¸·Î ¹İ¿Ã¸² (0.05m ´ÜÀ§)
 				resX = std::round(resX * 20.0) / 20.0;
 				resY = std::round(resY * 20.0) / 20.0;
 
@@ -531,21 +531,21 @@ private:
 			}
 		}
 
-		// GeoTransform êµ¬ì„±
-		dstGT[0] = minX;          // ì¢Œìƒë‹¨ X
-		dstGT[1] = resX;          // í”½ì…€ í¬ê¸° X
-		dstGT[2] = 0.0;           // íšŒì „ X
-		dstGT[3] = maxY;          // ì¢Œìƒë‹¨ Y
-		dstGT[4] = 0.0;           // íšŒì „ Y
-		dstGT[5] = -resY;         // í”½ì…€ í¬ê¸° Y (ìŒìˆ˜)
+		// GeoTransform ±¸¼º
+		dstGT[0] = minX;          // ÁÂ»ó´Ü X
+		dstGT[1] = resX;          // ÇÈ¼¿ Å©±â X
+		dstGT[2] = 0.0;           // È¸Àü X
+		dstGT[3] = maxY;          // ÁÂ»ó´Ü Y
+		dstGT[4] = 0.0;           // È¸Àü Y
+		dstGT[5] = -resY;         // ÇÈ¼¿ Å©±â Y (À½¼ö)
 
 		dstWidth = (int)std::ceil((maxX - minX) / resX);
 		dstHeight = (int)std::ceil((maxY - minY) / resY);
 
-		std::cout << "  ìë™ ê³„ì‚° í•´ìƒë„: " << resX << " x " << resY << " m\n";
+		std::cout << "  ÀÚµ¿ °è»ê ÇØ»óµµ: " << resX << " x " << resY << " m\n";
 	}
 
-	// ë¦¬ìƒ˜í”Œë§ ì•Œê³ ë¦¬ì¦˜ íŒŒì‹±
+	// ¸®»ùÇÃ¸µ ¾Ë°í¸®Áò ÆÄ½Ì
 	static GDALResampleAlg parseResampleAlg(const std::string& name)
 	{
 		if (name == "near" || name == "nearest")
@@ -563,7 +563,7 @@ private:
 		if (name == "mode")
 			return GRA_Mode;
 
-		std::cerr << "  âš  ì•Œ ìˆ˜ ì—†ëŠ” ë¦¬ìƒ˜í”Œë§ '" << name << "' â†’ bilinear ì‚¬ìš©\n";
+		std::cerr << "  ! ¾Ë ¼ö ¾ø´Â ¸®»ùÇÃ¸µ '" << name << "' ¡æ bilinear »ç¿ë\n";
 
 		return GRA_Bilinear;
 	}

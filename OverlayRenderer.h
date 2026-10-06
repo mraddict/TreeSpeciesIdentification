@@ -154,8 +154,8 @@ public:
 
 		auto geoToPx = [&](double gx, double gy) -> cv::Point
 		{
-			int px = (int)(gx - aerialImg.geoMinX) * scaleX;
-			int py = (int)(aerialImg.geoMaxY - gy) * scaleY;
+			int px = (int)((gx - aerialImg.geoMinX) * scaleX);
+			int py = (int)((aerialImg.geoMaxY - gy) * scaleY);
 
 			return cv::Point(px, py);
 		};

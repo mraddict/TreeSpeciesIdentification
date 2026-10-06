@@ -272,7 +272,7 @@ int main()
 	 
 	_mkdir(outputDir.c_str());
 
-	std::string courseDataSetConfigFilename = "../../Resources/courses_dataset_old.json";
+	std::string courseDataSetConfigFilename = "../../Resources/courses_dataset.json";
 
 /*
 	AerialHistogramMatcher matcher;

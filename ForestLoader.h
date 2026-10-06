@@ -1,10 +1,10 @@
-ï»¿#pragma once
+#pragma once
 
 #include "ForestCommon.h"
 
-// ìˆ˜ì¢…ê·¸ë£¹ì½”ë“œ(KOFTR_GROU) â†’ BGR ìƒ‰ìƒ ë§¤í•‘
-// ì‚°ë¦¼ì²­ ì„ìƒë„(1:5,000) ì½”ë“œ ì •ì˜ì„œ ê¸°ì¤€
-// ìƒ‰ìƒ í…Œì´ë¸”ì— ë“±ë¡ëœ ì½”ë“œì¸ì§€ í™•ì¸
+// ¼öÁ¾±×·ìÄÚµå(KOFTR_GROU) ¡æ BGR »ö»ó ¸ÅÇÎ
+// »ê¸²Ã» ÀÓ»óµµ(1:5,000) ÄÚµå Á¤ÀÇ¼­ ±âÁØ
+// »ö»ó Å×ÀÌºí¿¡ µî·ÏµÈ ÄÚµåÀÎÁö È®ÀÎ
 
 inline bool hasSpeciesColor(const std::string& code)
 {
@@ -27,69 +27,69 @@ inline bool hasSpeciesColor(const std::string& code)
 
 inline cv::Scalar getSpeciesColor(const std::string& code)
 {
-	// ìˆ˜ì¢…ê·¸ë£¹ì½”ë“œ(KOFTR_GROU) â†’ BGR ìƒ‰ìƒ ë§¤í•‘
+	// ¼öÁ¾±×·ìÄÚµå(KOFTR_GROU) ¡æ BGR »ö»ó ¸ÅÇÎ
 	static const std::unordered_map<std::string, cv::Scalar> table =
 	{
-		// â”€â”€ ì¹¨ì—½ìˆ˜ (ë…¹ìƒ‰ ê³„ì—´) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-		{"C", { 34, 139,  34}},   // ì¹¨ì—½ìˆ˜
-		{"11", { 34, 139,  34}},   // ì†Œë‚˜ë¬´
-		{"12", {  0,  80,   0}},   // ì£ë‚˜ë¬´
-		{"13", { 19,  69, 139}},   // ë‚™ì—½ì†¡
-		{"14", {  0, 165, 255}},   // ë¦¬ê¸°ë‹¤ì†Œë‚˜ë¬´
-		{"15", { 60, 179, 113}},   // ê³°ì†”
-		{"16", {128, 200,  80}},   // ì „ë‚˜ë¬´
-		{"17", { 80, 220, 160}},   // í¸ë°±ë‚˜ë¬´
-		{"18", {100, 240, 100}},   // ì‚¼ë‚˜ë¬´
-		{"19", { 50, 150,  50}},   // ê°€ë¬¸ë¹„ë‚˜ë¬´
-		{"20", {  0, 120,  80}},   // ë¹„ìë‚˜ë¬´
-		{"21", {180, 230, 180}},   // ì€í–‰ë‚˜ë¬´
-		{"10", {150, 200, 150}},   // ê¸°íƒ€ì¹¨ì—½ìˆ˜
-		// â”€â”€ ë‚™ì—½í™œì—½ìˆ˜ (í™©/ê°ˆìƒ‰ ê³„ì—´) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-		{"D", { 30, 144, 255}},   // ë‚™ì—½ìˆ˜
-		{"31", { 30, 144, 255}},   // ìƒìˆ˜ë¦¬ë‚˜ë¬´
-		{"32", { 65, 105, 225}},   // ì‹ ê°ˆë‚˜ë¬´
-		{"33", { 99, 149, 234}},   // êµ´ì°¸ë‚˜ë¬´
-		{"34", {130, 170, 250}},   // ê¸°íƒ€ì°¸ë‚˜ë¬´ë¥˜
-		{"35", { 42, 200, 180}},   // ì˜¤ë¦¬ë‚˜ë¬´
-		{"36", {  0, 210, 210}},   // ê³ ë¡œì‡ ë‚˜ë¬´
-		{"37", {200, 230, 255}},   // ìì‘ë‚˜ë¬´
-		{"38", {120, 160, 200}},   // ë°•ë‹¬ë‚˜ë¬´
-		{"39", { 20, 100, 200}},   // ë°¤ë‚˜ë¬´
-		{"40", { 80, 180, 230}},   // ë¬¼í‘¸ë ˆë‚˜ë¬´
-		{"41", { 50, 130, 180}},   // ì„œì–´ë‚˜ë¬´
-		{"42", {160, 200, 230}},   // ë•Œì£½ë‚˜ë¬´
-		{"43", { 90, 160, 220}},   // í˜¸ë‘ë‚˜ë¬´
-		{"44", {110, 190, 240}},   // ë°±í•©ë‚˜ë¬´
-		{"45", {170, 220, 255}},   // í¬í”ŒëŸ¬
-		{"46", {120,  80, 200}},   // ë²šë‚˜ë¬´
-		{"47", { 80,  50, 160}},   // ëŠí‹°ë‚˜ë¬´
-		{"48", {100,  70, 180}},   // ì¸µì¸µë‚˜ë¬´
-		{"49", {150, 120, 210}},   // ì•„ê¹Œì‹œë‚˜ë¬´
-		{"30", {180, 160, 230}},   // ê¸°íƒ€í™œì—½ìˆ˜
-		// â”€â”€ ìƒë¡í™œì—½ìˆ˜ (ì§„ë…¹/ì²­ë¡ ê³„ì—´) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-		{"E", {  0,  80,  60}},   // ìƒë¡ìˆ˜
-		{"61", {  0,  80,  60}},   // ê°€ì‹œë‚˜ë¬´
-		{"62", {  0, 100,  70}},   // êµ¬ì‹¤ì£ë°¤ë‚˜ë¬´
-		{"63", { 20, 120,  80}},   // ë…¹ë‚˜ë¬´
-		{"64", { 40, 130,  90}},   // êµ´ê±°ë¦¬ë‚˜ë¬´
-		{"65", { 60, 140, 100}},   // í™©ì¹ ë‚˜ë¬´
-		{"66", { 80, 150, 110}},   // ì‚¬ìŠ¤ë ˆí”¼ë‚˜ë¬´
-		{"67", {100, 160, 120}},   // í›„ë°•ë‚˜ë¬´
-		{"68", {120, 170, 130}},   // ìƒˆë•ì´
-		{"60", {140, 180, 140}},   // ê¸°íƒ€ìƒë¡í™œì—½ìˆ˜
-		// â”€â”€ í˜¼íš¨Â·ì£½ë¦¼Â·ë¹„ì‚°ë¦¼ (íšŒìƒ‰/íŠ¹ìˆ˜ ê³„ì—´) â”€â”€â”€â”€â”€â”€â”€â”€â”€
-		{"N", {128, 128,   0}},   // ë¹„ì‚°ë¦¼
-		{"77", {128, 128,   0}},   // ì¹¨í™œí˜¼íš¨ë¦¼
-		{"78", {  0, 200, 100}},   // ì£½ë¦¼
-		{"81", {211, 211, 211}},   // ë¯¸ë¦½ëª©ì§€
-		{"82", {169, 169, 169}},   // ì œì§€
-		{"83", {144, 238, 144}},   // ê´€ëª©ë¤ë¶ˆ
-		{"91", {192, 192, 192}},   // ì£¼ê±°ì§€
-		{"92", {200, 230, 200}},   // ì´ˆì§€
-		{"93", {220, 220, 180}},   // ê²½ì‘ì§€
-		{"94", {255, 200,   0}},   // ìˆ˜ì²´
-		{"95", {180, 255, 180}},   // ê³¼ìˆ˜ì›
-		{"99", {230, 230, 230}},   // ë¹„ì‚°ë¦¼
+		// ¦¡¦¡ Ä§¿±¼ö (³ì»ö °è¿­) ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+		{"C", { 34, 139,  34}},   // Ä§¿±¼ö
+		{"11", { 34, 139,  34}},   // ¼Ò³ª¹«
+		{"12", {  0,  80,   0}},   // Àã³ª¹«
+		{"13", { 19,  69, 139}},   // ³«¿±¼Û
+		{"14", {  0, 165, 255}},   // ¸®±â´Ù¼Ò³ª¹«
+		{"15", { 60, 179, 113}},   // °õ¼Ö
+		{"16", {128, 200,  80}},   // Àü³ª¹«
+		{"17", { 80, 220, 160}},   // Æí¹é³ª¹«
+		{"18", {100, 240, 100}},   // »ï³ª¹«
+		{"19", { 50, 150,  50}},   // °¡¹®ºñ³ª¹«
+		{"20", {  0, 120,  80}},   // ºñÀÚ³ª¹«
+		{"21", {180, 230, 180}},   // ÀºÇà³ª¹«
+		{"10", {150, 200, 150}},   // ±âÅ¸Ä§¿±¼ö
+		// ¦¡¦¡ ³«¿±È°¿±¼ö (È²/°¥»ö °è¿­) ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+		{"D", { 30, 144, 255}},   // ³«¿±¼ö
+		{"31", { 30, 144, 255}},   // »ó¼ö¸®³ª¹«
+		{"32", { 65, 105, 225}},   // ½Å°¥³ª¹«
+		{"33", { 99, 149, 234}},   // ±¼Âü³ª¹«
+		{"34", {130, 170, 250}},   // ±âÅ¸Âü³ª¹«·ù
+		{"35", { 42, 200, 180}},   // ¿À¸®³ª¹«
+		{"36", {  0, 210, 210}},   // °í·Î¼è³ª¹«
+		{"37", {200, 230, 255}},   // ÀÚÀÛ³ª¹«
+		{"38", {120, 160, 200}},   // ¹Ú´Ş³ª¹«
+		{"39", { 20, 100, 200}},   // ¹ã³ª¹«
+		{"40", { 80, 180, 230}},   // ¹°Çª·¹³ª¹«
+		{"41", { 50, 130, 180}},   // ¼­¾î³ª¹«
+		{"42", {160, 200, 230}},   // ¶§Á×³ª¹«
+		{"43", { 90, 160, 220}},   // È£µÎ³ª¹«
+		{"44", {110, 190, 240}},   // ¹éÇÕ³ª¹«
+		{"45", {170, 220, 255}},   // Æ÷ÇÃ·¯
+		{"46", {120,  80, 200}},   // º¢³ª¹«
+		{"47", { 80,  50, 160}},   // ´ÀÆ¼³ª¹«
+		{"48", {100,  70, 180}},   // ÃşÃş³ª¹«
+		{"49", {150, 120, 210}},   // ¾Æ±î½Ã³ª¹«
+		{"30", {180, 160, 230}},   // ±âÅ¸È°¿±¼ö
+		// ¦¡¦¡ »ó·ÏÈ°¿±¼ö (Áø³ì/Ã»·Ï °è¿­) ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+		{"E", {  0,  80,  60}},   // »ó·Ï¼ö
+		{"61", {  0,  80,  60}},   // °¡½Ã³ª¹«
+		{"62", {  0, 100,  70}},   // ±¸½ÇÀã¹ã³ª¹«
+		{"63", { 20, 120,  80}},   // ³ì³ª¹«
+		{"64", { 40, 130,  90}},   // ±¼°Å¸®³ª¹«
+		{"65", { 60, 140, 100}},   // È²Ä¥³ª¹«
+		{"66", { 80, 150, 110}},   // »ç½º·¹ÇÇ³ª¹«
+		{"67", {100, 160, 120}},   // ÈÄ¹Ú³ª¹«
+		{"68", {120, 170, 130}},   // »õ´öÀÌ
+		{"60", {140, 180, 140}},   // ±âÅ¸»ó·ÏÈ°¿±¼ö
+		// ¦¡¦¡ È¥È¿¡¤Á×¸²¡¤ºñ»ê¸² (È¸»ö/Æ¯¼ö °è¿­) ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+		{"N", {128, 128,   0}},   // ºñ»ê¸²
+		{"77", {128, 128,   0}},   // Ä§È°È¥È¿¸²
+		{"78", {  0, 200, 100}},   // Á×¸²
+		{"81", {211, 211, 211}},   // ¹Ì¸³¸ñÁö
+		{"82", {169, 169, 169}},   // Á¦Áö
+		{"83", {144, 238, 144}},   // °ü¸ñ´ıºÒ
+		{"91", {192, 192, 192}},   // ÁÖ°ÅÁö
+		{"92", {200, 230, 200}},   // ÃÊÁö
+		{"93", {220, 220, 180}},   // °æÀÛÁö
+		{"94", {255, 200,   0}},   // ¼öÃ¼
+		{"95", {180, 255, 180}},   // °ú¼ö¿ø
+		{"99", {230, 230, 230}},   // ºñ»ê¸²
 	};
 
 	auto it = table.find(code);
@@ -113,7 +113,7 @@ inline cv::Scalar getPolygonFillColor(const std::string& code)
 	return cv::Scalar(baseColor[0] + (255 - baseColor[0]) * blend, baseColor[1] + (255 - baseColor[1]) * blend, baseColor[2] + (255 - baseColor[2]) * blend);
 }
 
-// â”€â”€â”€ Species code -> English name mapping â”€â”€â”€
+// ¦¡¦¡¦¡ Species code -> English name mapping ¦¡¦¡¦¡
 
 inline const std::string& getSpeciesName(const std::string& code, bool getKo = false)
 {
@@ -126,66 +126,66 @@ inline const std::string& getSpeciesName(const std::string& code, bool getKo = f
 
 	static const std::vector<SpeciesEntry> entries =
 	{
-		// ì¹¨ì—½ìˆ˜
-		{"C","ì¹¨ì—½ìˆ˜",         "Conifer"},
-		{"11","ì†Œë‚˜ë¬´",         "Pine"},
-		{"12","ì£ë‚˜ë¬´",         "Korean Pine"},
-		{"13","ë‚™ì—½ì†¡",         "Larch"},
-		{"14","ë¦¬ê¸°ë‹¤ì†Œë‚˜ë¬´",   "Pitch Pine"},
-		{"15","ê³°ì†”",           "Black Pine"},
-		{"16","ì „ë‚˜ë¬´",         "Fir"},
-		{"17","í¸ë°±ë‚˜ë¬´",       "Hinoki Cypress"},
-		{"18","ì‚¼ë‚˜ë¬´",         "Cedar"},
-		{"19","ê°€ë¬¸ë¹„ë‚˜ë¬´",     "Spruce"},
-		{"20","ë¹„ìë‚˜ë¬´",       "Japanese Torreya"},
-		{"21","ì€í–‰ë‚˜ë¬´",       "Ginkgo"},
-		{"10","ê¸°íƒ€ì¹¨ì—½ìˆ˜",     "Other Conifers"},
-		// ë‚™ì—½í™œì—½ìˆ˜
-		{"D","ë‚™ì—½ìˆ˜",     "Deciduous"},
-		{"31","ìƒìˆ˜ë¦¬ë‚˜ë¬´",     "Sawtooth Oak"},
-		{"32","ì‹ ê°ˆë‚˜ë¬´",       "Mongolian Oak"},
-		{"33","êµ´ì°¸ë‚˜ë¬´",       "Oriental Oak"},
-		{"34","ê¸°íƒ€ì°¸ë‚˜ë¬´ë¥˜",   "Other Oaks"},
-		{"35","ì˜¤ë¦¬ë‚˜ë¬´",       "Alder"},
-		{"36","ê³ ë¡œì‡ ë‚˜ë¬´",     "Painted Maple"},
-		{"37","ìì‘ë‚˜ë¬´",       "Birch"},
-		{"38","ë°•ë‹¬ë‚˜ë¬´",       "Asian White Birch"},
-		{"39","ë°¤ë‚˜ë¬´",         "Chestnut"},
-		{"40","ë¬¼í‘¸ë ˆë‚˜ë¬´",     "Ash"},
-		{"41","ì„œì–´ë‚˜ë¬´",       "Hornbeam"},
-		{"42","ë•Œì£½ë‚˜ë¬´",       "Snowbell"},
-		{"43","í˜¸ë‘ë‚˜ë¬´",       "Walnut"},
-		{"44","ë°±í•©ë‚˜ë¬´",       "Tulip Tree"},
-		{"45","í¬í”ŒëŸ¬",         "Poplar"},
-		{"46","ë²šë‚˜ë¬´",         "Cherry"},
-		{"47","ëŠí‹°ë‚˜ë¬´",       "Zelkova"},
-		{"48","ì¸µì¸µë‚˜ë¬´",       "Dogwood"},
-		{"49","ì•„ê¹Œì‹œë‚˜ë¬´",     "Black Locust"},
-		{"30","ê¸°íƒ€í™œì—½ìˆ˜",     "Other Deciduous"},
-		// ìƒë¡í™œì—½ìˆ˜
-		{"E","ìƒë¡ìˆ˜",       "Evergreen"},
-		{"61","ê°€ì‹œë‚˜ë¬´",       "Evergreen Oak"},
-		{"62","êµ¬ì‹¤ì£ë°¤ë‚˜ë¬´",   "Castanopsis"},
-		{"63","ë…¹ë‚˜ë¬´",         "Camphor Tree"},
-		{"64","êµ´ê±°ë¦¬ë‚˜ë¬´",     "Daphniphyllum"},
-		{"65","í™©ì¹ ë‚˜ë¬´",       "Dendropanax"},
-		{"66","ì‚¬ìŠ¤ë ˆí”¼ë‚˜ë¬´",   "Eurya"},
-		{"67","í›„ë°•ë‚˜ë¬´",       "Machilus"},
-		{"68","ìƒˆë•ì´",         "Neolitsea"},
-		{"60","ê¸°íƒ€ìƒë¡í™œì—½ìˆ˜", "Other Evergreen"},
-		// í˜¼íš¨Â·ë¹„ì‚°ë¦¼
-		{"N","ë¹„ì‚°ë¦¼",     "Non-Forest"},
-		{"77","ì¹¨í™œí˜¼íš¨ë¦¼",     "Mixed Forest"},
-		{"78","ì£½ë¦¼",           "Bamboo"},
-		{"81","ë¯¸ë¦½ëª©ì§€",       "Unstocked"},
-		{"82","ì œì§€",           "Bare Land"},
-		{"83","ê´€ëª©ë¤ë¶ˆ",       "Shrub"},
-		{"91","ì£¼ê±°ì§€",         "Residential"},
-		{"92","ì´ˆì§€",           "Grassland"},
-		{"93","ê²½ì‘ì§€",         "Farmland"},
-		{"94","ìˆ˜ì²´",           "Water"},
-		{"95","ê³¼ìˆ˜ì›",         "Orchard"},
-		{"99","ë¹„ì‚°ë¦¼",         "Non-Forest"},
+		// Ä§¿±¼ö
+		{"C","Ä§¿±¼ö",         "Conifer"},
+		{"11","¼Ò³ª¹«",         "Pine"},
+		{"12","Àã³ª¹«",         "Korean Pine"},
+		{"13","³«¿±¼Û",         "Larch"},
+		{"14","¸®±â´Ù¼Ò³ª¹«",   "Pitch Pine"},
+		{"15","°õ¼Ö",           "Black Pine"},
+		{"16","Àü³ª¹«",         "Fir"},
+		{"17","Æí¹é³ª¹«",       "Hinoki Cypress"},
+		{"18","»ï³ª¹«",         "Cedar"},
+		{"19","°¡¹®ºñ³ª¹«",     "Spruce"},
+		{"20","ºñÀÚ³ª¹«",       "Japanese Torreya"},
+		{"21","ÀºÇà³ª¹«",       "Ginkgo"},
+		{"10","±âÅ¸Ä§¿±¼ö",     "Other Conifers"},
+		// ³«¿±È°¿±¼ö
+		{"D","³«¿±¼ö",     "Deciduous"},
+		{"31","»ó¼ö¸®³ª¹«",     "Sawtooth Oak"},
+		{"32","½Å°¥³ª¹«",       "Mongolian Oak"},
+		{"33","±¼Âü³ª¹«",       "Oriental Oak"},
+		{"34","±âÅ¸Âü³ª¹«·ù",   "Other Oaks"},
+		{"35","¿À¸®³ª¹«",       "Alder"},
+		{"36","°í·Î¼è³ª¹«",     "Painted Maple"},
+		{"37","ÀÚÀÛ³ª¹«",       "Birch"},
+		{"38","¹Ú´Ş³ª¹«",       "Asian White Birch"},
+		{"39","¹ã³ª¹«",         "Chestnut"},
+		{"40","¹°Çª·¹³ª¹«",     "Ash"},
+		{"41","¼­¾î³ª¹«",       "Hornbeam"},
+		{"42","¶§Á×³ª¹«",       "Snowbell"},
+		{"43","È£µÎ³ª¹«",       "Walnut"},
+		{"44","¹éÇÕ³ª¹«",       "Tulip Tree"},
+		{"45","Æ÷ÇÃ·¯",         "Poplar"},
+		{"46","º¢³ª¹«",         "Cherry"},
+		{"47","´ÀÆ¼³ª¹«",       "Zelkova"},
+		{"48","ÃşÃş³ª¹«",       "Dogwood"},
+		{"49","¾Æ±î½Ã³ª¹«",     "Black Locust"},
+		{"30","±âÅ¸È°¿±¼ö",     "Other Deciduous"},
+		// »ó·ÏÈ°¿±¼ö
+		{"E","»ó·Ï¼ö",       "Evergreen"},
+		{"61","°¡½Ã³ª¹«",       "Evergreen Oak"},
+		{"62","±¸½ÇÀã¹ã³ª¹«",   "Castanopsis"},
+		{"63","³ì³ª¹«",         "Camphor Tree"},
+		{"64","±¼°Å¸®³ª¹«",     "Daphniphyllum"},
+		{"65","È²Ä¥³ª¹«",       "Dendropanax"},
+		{"66","»ç½º·¹ÇÇ³ª¹«",   "Eurya"},
+		{"67","ÈÄ¹Ú³ª¹«",       "Machilus"},
+		{"68","»õ´öÀÌ",         "Neolitsea"},
+		{"60","±âÅ¸»ó·ÏÈ°¿±¼ö", "Other Evergreen"},
+		// È¥È¿¡¤ºñ»ê¸²
+		{"N","ºñ»ê¸²",     "Non-Forest"},
+		{"77","Ä§È°È¥È¿¸²",     "Mixed Forest"},
+		{"78","Á×¸²",           "Bamboo"},
+		{"81","¹Ì¸³¸ñÁö",       "Unstocked"},
+		{"82","Á¦Áö",           "Bare Land"},
+		{"83","°ü¸ñ´ıºÒ",       "Shrub"},
+		{"91","ÁÖ°ÅÁö",         "Residential"},
+		{"92","ÃÊÁö",           "Grassland"},
+		{"93","°æÀÛÁö",         "Farmland"},
+		{"94","¼öÃ¼",           "Water"},
+		{"95","°ú¼ö¿ø",         "Orchard"},
+		{"99","ºñ»ê¸²",         "Non-Forest"},
 	};
 
 	static std::map<std::string, std::string> tableEn;
@@ -220,8 +220,8 @@ inline const std::string& getSpeciesName(const std::string& code, bool getKo = f
 class ForestLoader
 {
 	/**
-	  * path : .shp íŒŒì¼ ê²½ë¡œ (ë˜ëŠ” GeoJSON, GPKG ë“± ì–´ë–¤ OGR ì†ŒìŠ¤ë„ OK)
-	  * filterSQL : OGR SQL WHERE ì ˆ (ì„ íƒ). ì˜ˆ) "FRTP_CD = '01'"
+	  * path : .shp ÆÄÀÏ °æ·Î (¶Ç´Â GeoJSON, GPKG µî ¾î¶² OGR ¼Ò½ºµµ OK)
+	  * filterSQL : OGR SQL WHERE Àı (¼±ÅÃ). ¿¹) "FRTP_CD = '01'"
 	  */
 
 public:
@@ -231,30 +231,30 @@ public:
 		return loadMultiple({path}, filterSQL, debug);
 	}
 
-	// â”€â”€â”€ í•˜ë‚˜ ì´ìƒì˜ SHP ë¡œë”© (í•µì‹¬ ë¡œë”© í•¨ìˆ˜) â”€â”€â”€
+	// ¦¡¦¡¦¡ ÇÏ³ª ÀÌ»óÀÇ SHP ·Îµù (ÇÙ½É ·Îµù ÇÔ¼ö) ¦¡¦¡¦¡
 	static ForestLayer loadMultiple(const std::vector<std::string>& paths, const std::string& filterSQL, bool debug)
 	{
 		if (paths.empty())
 		{
-			throw std::runtime_error("ë¡œë”©í•  SHP íŒŒì¼ ëª©ë¡ì´ ë¹„ì–´ìˆìŠµë‹ˆë‹¤.");
+			throw std::runtime_error("·ÎµùÇÒ SHP ÆÄÀÏ ¸ñ·ÏÀÌ ºñ¾îÀÖ½À´Ï´Ù.");
 		}
 
 		ForestLayer result;
 		result.sourcePaths = paths;
 
 		bool bFirstLayer = true;
-		long long fidOffset = 0;			// FID ì¤‘ë³µ ë°©ì§€ìš© ì˜¤í”„ì…‹
+		long long fidOffset = 0;			// FID Áßº¹ ¹æÁö¿ë ¿ÀÇÁ¼Â
 
 		for (int si = 0 ; si < (int)paths.size() ; ++si)
 		{
 			const auto& path = paths[si];
 
-			// â”€â”€ ë°ì´í„°ì†ŒìŠ¤ ì—´ê¸° â”€â”€
+			// ¦¡¦¡ µ¥ÀÌÅÍ¼Ò½º ¿­±â ¦¡¦¡
 			GDALDataset* pDS = (GDALDataset*)GDALOpenEx(path.c_str(), GDAL_OF_VECTOR | GDAL_OF_READONLY, nullptr, nullptr, nullptr);
 
 			if (!pDS)
 			{
-				throw std::runtime_error("SHP ì—´ê¸° ì‹¤íŒ¨: " + path);
+				throw std::runtime_error("SHP ¿­±â ½ÇÆĞ: " + path);
 			}
 
 			struct DSGuard
@@ -271,7 +271,7 @@ public:
 
 			if (!pLayer)
 			{
-				throw std::runtime_error("ë ˆì´ì–´ë¥¼ ì°¾ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤: " + path);
+				throw std::runtime_error("·¹ÀÌ¾î¸¦ Ã£À» ¼ö ¾ø½À´Ï´Ù: " + path);
 			}
 
 			if (!filterSQL.empty())
@@ -279,15 +279,15 @@ public:
 				pLayer->SetAttributeFilter(filterSQL.c_str());
 			}
 
-			// í•„ë“œ ì •ë³´
+			// ÇÊµå Á¤º¸
 			OGRFeatureDefn* pDefn = pLayer->GetLayerDefn();
 			int iFieldCount = pDefn->GetFieldCount();
 
-			// â”€â”€ ì²« ë²ˆì§¸ íŒŒì¼ì—ì„œ ë©”íƒ€ ì •ë³´ ìˆ˜ì§‘ â”€â”€
+			// ¦¡¦¡ Ã¹ ¹øÂ° ÆÄÀÏ¿¡¼­ ¸ŞÅ¸ Á¤º¸ ¼öÁı ¦¡¦¡
 			if (bFirstLayer)
 			{
 				result.layerName = pLayer->GetName();
-				result.totalFeatures = 0; //(int)pLayer->GetFeatureCount(); ë°‘ì—ì„œ ì„¤ì •
+				result.totalFeatures = 0; //(int)pLayer->GetFeatureCount(); ¹Ø¿¡¼­ ¼³Á¤
 
 				if (const OGRSpatialReference* pSRS = pLayer->GetSpatialRef())
 				{
@@ -300,11 +300,11 @@ public:
 					parseProjection(pSRS, result);
 				}
 
-				// ì§€ì˜¤ë©”íŠ¸ë¦¬ íƒ€ì…
+				// Áö¿À¸ŞÆ®¸® Å¸ÀÔ
 				result.geomType = pLayer->GetGeomType();
 				result.geomTypeName = OGRGeometryTypeToName(result.geomType);
 
-				// ë²”ìœ„
+				// ¹üÀ§
 				OGREnvelope env;
 				if (pLayer->GetExtent(&env) == OGRERR_NONE)
 				{
@@ -330,7 +330,7 @@ public:
 			}
 			else
 			{
-				// â”€â”€ ì¶”ê°€ íŒŒì¼: ì¢Œí‘œê³„ ì¼ì¹˜ í™•ì¸ + ë²”ìœ„ ê°±ì‹  â”€â”€
+				// ¦¡¦¡ Ãß°¡ ÆÄÀÏ: ÁÂÇ¥°è ÀÏÄ¡ È®ÀÎ + ¹üÀ§ °»½Å ¦¡¦¡
 				const OGRSpatialReference* pSRS = pLayer->GetSpatialRef();
 
 				if (pSRS && (result.epsg > 0))
@@ -340,11 +340,11 @@ public:
 
 					if ((otherEpsg > 0) && (otherEpsg != result.epsg))
 					{
-						std::cerr << "  âš  ì¢Œí‘œê³„ ë¶ˆì¼ì¹˜! EPSG:" << result.epsg << " vs EPSG:" << otherEpsg << " (" << path << ")\n";
+						std::cerr << "  ! ÁÂÇ¥°è ºÒÀÏÄ¡! EPSG:" << result.epsg << " vs EPSG:" << otherEpsg << " (" << path << ")\n";
 					}
 				}
 
-				// â”€â”€ Extent ëˆ„ì  â”€â”€
+				// ¦¡¦¡ Extent ´©Àû ¦¡¦¡
 				OGREnvelope env;
 				if (pLayer->GetExtent(&env) == OGRERR_NONE)
 				{
@@ -352,7 +352,7 @@ public:
 				}
 			}
 
-			// â”€â”€ í”¼ì²˜ ì½ê¸° (ëª¨ë“  íŒŒì¼ ê³µí†µ) â”€â”€
+			// ¦¡¦¡ ÇÇÃ³ ÀĞ±â (¸ğµç ÆÄÀÏ °øÅë) ¦¡¦¡
 
 			pLayer->ResetReading();
 
@@ -370,8 +370,8 @@ public:
 				ff.fid = pFeature->GetFID() + fidOffset;
 				ff.sourceIndex = si;
 
-				// ì§€ì˜¤ë©”íŠ¸ë¦¬ ë³µì‚¬
-				// ë„í˜• ë³µì‚¬ (DS ë‹«íˆë©´ ì›ë³¸ í¬ì¸í„° ë¬´íš¨ â†’ clone í•„ìˆ˜)
+				// Áö¿À¸ŞÆ®¸® º¹»ç
+				// µµÇü º¹»ç (DS ´İÈ÷¸é ¿øº» Æ÷ÀÎÅÍ ¹«È¿ ¡æ clone ÇÊ¼ö)
 				OGRGeometry* pGeometry = pFeature->GetGeometryRef();
 
 				if (pGeometry && !pGeometry->IsEmpty())
@@ -379,12 +379,12 @@ public:
 					ff.geometry = pGeometry ? pGeometry->clone() : nullptr;
 					++result.validGeomCount;
 
-					// ë©´ì /ë‘˜ë ˆ (í´ë¦¬ê³¤ì¸ ê²½ìš°)
+					// ¸éÀû/µÑ·¹ (Æú¸®°ïÀÎ °æ¿ì)
 					OGRwkbGeometryType flatType = wkbFlatten(pGeometry->getGeometryType());
 
 					if ((flatType == wkbPolygon) || (flatType== wkbMultiPolygon))
 					{
-						// ë©´ì : OGR C API ì‚¬ìš© (GEOS ë‚´ë¶€ lock ìš°íšŒ)
+						// ¸éÀû: OGR C API »ç¿ë (GEOS ³»ºÎ lock ¿ìÈ¸)
 						try
 						{
 							ff.area = OGR_G_Area(OGRGeometry::ToHandle(ff.geometry));
@@ -394,7 +394,7 @@ public:
 							ff.area = 0.0;
 						}
 
-						// ë‘˜ë ˆ: Boundary â†’ Length (ë³„ë„ ë¸”ë¡ìœ¼ë¡œ ë¶„ë¦¬)
+						// µÑ·¹: Boundary ¡æ Length (º°µµ ºí·ÏÀ¸·Î ºĞ¸®)
 						try
 						{
 							OGRGeometry* boundary = pGeometry->Boundary();
@@ -422,7 +422,7 @@ public:
 						ff.attributes[key] = val ? val : "";
 					}
 
-					// ìˆ˜ì¢… í†µê³„ ì§‘ê³„
+					// ¼öÁ¾ Åë°è Áı°è
 					auto itCode = ff.attributes.find(SPECIES_CODE);
 
 					if (itCode != ff.attributes.end() && !itCode->second.empty())
@@ -454,29 +454,29 @@ public:
 					OGRFeature::DestroyFeature(pFeature);
 				}
 				
-				// ì§„í–‰ ìƒí™© ì¶œë ¥ (íŒŒì¼ì´ 2ê°œ ì´ìƒì¼ ë•Œë§Œ)
+				// ÁøÇà »óÈ² Ãâ·Â (ÆÄÀÏÀÌ 2°³ ÀÌ»óÀÏ ¶§¸¸)
 				if ((paths.size() > 1) && debug)
 				{
-					std::cout << "  [" << (si + 1) << "/" << paths.size() << "] " << path << " â†’ " << fileFeatureCount << " í”¼ì²˜\n";
+					std::cout << "  [" << (si + 1) << "/" << paths.size() << "] " << path << " ¡æ " << fileFeatureCount << " ÇÇÃ³\n";
 				}
 			}
 			
-			// ë‹¤ìŒ íŒŒì¼ì˜ FIDê°€ ê²¹ì¹˜ì§€ ì•Šë„ë¡ ì˜¤í”„ì…‹ ê°±ì‹ 
+			// ´ÙÀ½ ÆÄÀÏÀÇ FID°¡ °ãÄ¡Áö ¾Êµµ·Ï ¿ÀÇÁ¼Â °»½Å
 			fidOffset += pLayer->GetFeatureCount(FALSE);
 		}
 
 		if (paths.size() > 1)
 		{
-			std::cout << "  â†’ ë³‘í•© ì™„ë£Œ: ì´ " << result.features.size() << " í”¼ì²˜\n";
+			std::cout << "  ¡æ º´ÇÕ ¿Ï·á: ÃÑ " << result.features.size() << " ÇÇÃ³\n";
 		}
 		
 		return result;
 	}
 
-	// â”€â”€â”€ íŠ¹ì • ì¢Œí‘œê°€ ì–´ë–¤ í´ë¦¬ê³¤ì— ì†í•˜ëŠ”ì§€ ê²€ìƒ‰ â”€â”€â”€
+	// ¦¡¦¡¦¡ Æ¯Á¤ ÁÂÇ¥°¡ ¾î¶² Æú¸®°ï¿¡ ¼ÓÇÏ´ÂÁö °Ë»ö ¦¡¦¡¦¡
 	static bool queryPoint(const ForestLayer& forest, double gx, double gy)
 	{
-		std::cout << "\nâ”€â”€ ì¢Œí‘œ ì§ˆì˜: (" << gx << ", " << gy << ") â”€â”€\n";
+		std::cout << "\n¦¡¦¡ ÁÂÇ¥ ÁúÀÇ: (" << gx << ", " << gy << ") ¦¡¦¡\n";
 
 		OGRPoint pt(gx, gy);
 		bool found = false;
@@ -496,9 +496,9 @@ public:
 			}
 
 			found = true;
-			std::cout << "  â†’ í”¼ì²˜ #" << i << " ì— í¬í•¨ë¨\n";
+			std::cout << "  ¡æ ÇÇÃ³ #" << i << " ¿¡ Æ÷ÇÔµÊ\n";
 
-			// ì£¼ìš” ì†ì„± ì¶œë ¥
+			// ÁÖ¿ä ¼Ó¼º Ãâ·Â
 			for (auto& kv : feat.attributes)
 			{
 				if (!kv.second.empty())
@@ -507,119 +507,119 @@ public:
 				}
 			}
 
-			// ê²½ê³„ê¹Œì§€ ê±°ë¦¬
+			// °æ°è±îÁö °Å¸®
 			OGRGeometry* boundary = feat.geometry->Boundary();
 
 			if (boundary)
 			{
 				double dist = pt.Distance(boundary);
-				std::cout << "    ê²½ê³„ê¹Œì§€ ê±°ë¦¬ : " << std::setprecision(2) << dist << " (ë‹¨ìœ„: ì¢Œí‘œê³„ ë‹¨ìœ„)\n";
+				std::cout << "    °æ°è±îÁö °Å¸® : " << std::setprecision(2) << dist << " (´ÜÀ§: ÁÂÇ¥°è ´ÜÀ§)\n";
 				
 				OGRGeometryFactory::destroyGeometry(boundary);
 			}
 
-			std::cout << "    ë©´ì           : " << std::setprecision(1) << feat.area << "\n" << std::setprecision(6);
+			std::cout << "    ¸éÀû          : " << std::setprecision(1) << feat.area << "\n" << std::setprecision(6);
 		}
 
 		if (!found)
 		{
-			std::cout << "  â†’ ì–´ë–¤ í´ë¦¬ê³¤ì—ë„ í¬í•¨ë˜ì§€ ì•ŠìŠµë‹ˆë‹¤.\n";
-			std::cout << "  ì„ìƒë„ ë²”ìœ„: X[" << forest.extent.MinX << " ~ " << forest.extent.MaxX << "] Y[" << forest.extent.MinY << " ~ " << forest.extent.MaxY << "]\n";
+			std::cout << "  ¡æ ¾î¶² Æú¸®°ï¿¡µµ Æ÷ÇÔµÇÁö ¾Ê½À´Ï´Ù.\n";
+			std::cout << "  ÀÓ»óµµ ¹üÀ§: X[" << forest.extent.MinX << " ~ " << forest.extent.MaxX << "] Y[" << forest.extent.MinY << " ~ " << forest.extent.MaxY << "]\n";
 		}
 
 		return found;
 	}
 	
-	// â”€â”€â”€ ë©”íƒ€ë°ì´í„° ì¶œë ¥ â”€â”€â”€
+	// ¦¡¦¡¦¡ ¸ŞÅ¸µ¥ÀÌÅÍ Ãâ·Â ¦¡¦¡¦¡
 	static void printInfo(const ForestLayer& f)
 	{
 		std::cout << std::fixed << std::setprecision(6);
-		std::cout << "â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—\n";
-		std::cout << "â•‘       ì„ìƒë„ SHP ë©”íƒ€ë°ì´í„° ì •ë³´                â•‘\n";
-		std::cout << "â• â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•£\n";
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
+		std::cout << "|       ÀÓ»óµµ SHP ¸ŞÅ¸µ¥ÀÌÅÍ Á¤º¸                |\n";
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
 
-		// 1. ê¸°ë³¸ ì •ë³´
-		std::cout << "â•‘ [íŒŒì¼ ê¸°ë³¸ ì •ë³´]                                 â•‘\n";
-		std::cout << "â•Ÿâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â•¢\n";
-		std::cout << "  ë ˆì´ì–´ ì´ë¦„   : " << f.layerName << "\n";
-		std::cout << "  ì§€ì˜¤ë©”íŠ¸ë¦¬ íƒ€ì…: " << f.geomTypeName << "\n";
-		std::cout << "  ì „ì²´ í”¼ì²˜ ìˆ˜  : " << f.totalFeatures << "\n";
+		// 1. ±âº» Á¤º¸
+		std::cout << "| [ÆÄÀÏ ±âº» Á¤º¸]                                 |\n";
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
+		std::cout << "  ·¹ÀÌ¾î ÀÌ¸§   : " << f.layerName << "\n";
+		std::cout << "  Áö¿À¸ŞÆ®¸® Å¸ÀÔ: " << f.geomTypeName << "\n";
+		std::cout << "  ÀüÃ¼ ÇÇÃ³ ¼ö  : " << f.totalFeatures << "\n";
 	
 		if (f.validGeomCount > 0)
 		{
-			std::cout << "  ìœ íš¨ ì§€ì˜¤ë©”íŠ¸ë¦¬: " << f.validGeomCount << "\n";
-			std::cout << "  ë¹ˆ ì§€ì˜¤ë©”íŠ¸ë¦¬  : " << f.emptyGeomCount << "\n";
+			std::cout << "  À¯È¿ Áö¿À¸ŞÆ®¸®: " << f.validGeomCount << "\n";
+			std::cout << "  ºó Áö¿À¸ŞÆ®¸®  : " << f.emptyGeomCount << "\n";
 		}
 
-		// 2. ì¢Œí‘œê³„ ì •ë³´
-		std::cout << "â•Ÿâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â•¢\n";
-		std::cout << "â•‘ [ì¢Œí‘œê³„ / íˆ¬ì˜ ì •ë³´]                             â•‘\n";
-		std::cout << "â•Ÿâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â•¢\n";
-		std::cout << "  EPSG ì½”ë“œ    : " << (f.epsg > 0 ? std::to_string(f.epsg) : "í™•ì¸ ë¶ˆê°€") << "\n";
-		std::cout << "  íˆ¬ì˜ ì´ë¦„    : " << (f.projName.empty() ? "N/A" : f.projName) << "\n";
-		std::cout << "  ë°ì´í…€       : " << (f.datum.empty() ? "N/A" : f.datum) << "\n";
-		std::cout << "  ì¢Œí‘œ ë‹¨ìœ„    : " << (f.units.empty() ? "N/A" : f.units) << "\n";
+		// 2. ÁÂÇ¥°è Á¤º¸
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
+		std::cout << "| [ÁÂÇ¥°è / Åõ¿µ Á¤º¸]                             |\n";
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
+		std::cout << "  EPSG ÄÚµå    : " << (f.epsg > 0 ? std::to_string(f.epsg) : "È®ÀÎ ºÒ°¡") << "\n";
+		std::cout << "  Åõ¿µ ÀÌ¸§    : " << (f.projName.empty() ? "N/A" : f.projName) << "\n";
+		std::cout << "  µ¥ÀÌÅÒ       : " << (f.datum.empty() ? "N/A" : f.datum) << "\n";
+		std::cout << "  ÁÂÇ¥ ´ÜÀ§    : " << (f.units.empty() ? "N/A" : f.units) << "\n";
 
-		// 3. ì˜ì—­ ë²”ìœ„
-		std::cout << "â•Ÿâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â•¢\n";
-		std::cout << "â•‘ [ì˜ì—­ ë²”ìœ„ (Bounding Box)]                       â•‘\n";
-		std::cout << "â•Ÿâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â•¢\n";
-		std::cout << "  Min X (ì„œìª½)  : " << f.extent.MinX << "\n";
-		std::cout << "  Max X (ë™ìª½)  : " << f.extent.MaxX << "\n";
-		std::cout << "  Min Y (ë‚¨ìª½)  : " << f.extent.MinY << "\n";
-		std::cout << "  Max Y (ë¶ìª½)  : " << f.extent.MaxY << "\n";
+		// 3. ¿µ¿ª ¹üÀ§
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
+		std::cout << "| [¿µ¿ª ¹üÀ§ (Bounding Box)]                       |\n";
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
+		std::cout << "  Min X (¼­ÂÊ)  : " << f.extent.MinX << "\n";
+		std::cout << "  Max X (µ¿ÂÊ)  : " << f.extent.MaxX << "\n";
+		std::cout << "  Min Y (³²ÂÊ)  : " << f.extent.MinY << "\n";
+		std::cout << "  Max Y (ºÏÂÊ)  : " << f.extent.MaxY << "\n";
 
 		double extentX = f.extent.MaxX - f.extent.MinX;
 		double extentY = f.extent.MaxY - f.extent.MinY;
-		std::cout << "  ê°€ë¡œ ë²”ìœ„     : " << extentX << "\n";
-		std::cout << "  ì„¸ë¡œ ë²”ìœ„     : " << extentY << "\n";
+		std::cout << "  °¡·Î ¹üÀ§     : " << extentX << "\n";
+		std::cout << "  ¼¼·Î ¹üÀ§     : " << extentY << "\n";
 
 		if ((f.units.find("metre") != std::string::npos) || (f.units.find("meter") != std::string::npos) || (f.units.find("Meter") != std::string::npos))
 		{
 			double areaSqKm = (extentX * extentY) / 1e6;
-			std::cout << "  ë²”ìœ„ ë©´ì      : " << std::setprecision(3) << areaSqKm << " kmÂ² (BBox)\n";
+			std::cout << "  ¹üÀ§ ¸éÀû     : " << std::setprecision(3) << areaSqKm << " km©÷ (BBox)\n";
 			std::cout << std::setprecision(6);
 		}
 
-		// 4. í•„ë“œ (ì†ì„±) ì •ë³´
-		std::cout << "â•Ÿâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â•¢\n";
-		std::cout << "â•‘ [ì†ì„± í•„ë“œ ëª©ë¡] (" << f.fields.size() << "ê°œ)    â•‘\n";
-		std::cout << "â•Ÿâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â•¢\n";
-		std::cout << "  " << std::left << std::setw(20) << "í•„ë“œëª…" << std::setw(12) << "íƒ€ì…" << std::setw(8) << "ë„ˆë¹„" << "ì •ë°€ë„\n";
+		// 4. ÇÊµå (¼Ó¼º) Á¤º¸
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
+		std::cout << "| [¼Ó¼º ÇÊµå ¸ñ·Ï] (" << f.fields.size() << "°³)    |\n";
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
+		std::cout << "  " << std::left << std::setw(20) << "ÇÊµå¸í" << std::setw(12) << "Å¸ÀÔ" << std::setw(8) << "³Êºñ" << "Á¤¹Ğµµ\n";
 		std::cout << "  " << std::string(48, '-') << "\n";
 		
 		for (auto& fi : f.fields)
 		{
-			// ìˆ˜ì¢… ê´€ë ¨ í•„ë“œ ê°•ì¡°
+			// ¼öÁ¾ °ü·Ã ÇÊµå °­Á¶
 			bool isSpecies = (fi.name == SPECIES_CODE || fi.name == SPECIES_NAME || fi.name == "FROR_NM" || fi.name == "DMCLS_CD");
-			std::cout << (isSpecies ? "â˜… " : "  ") << std::setw(20) << fi.name << std::setw(12) << fi.typeName << std::setw(8) << fi.width << fi.precision << "\n";
+			std::cout << (isSpecies ? "¡Ú " : "  ") << std::setw(20) << fi.name << std::setw(12) << fi.typeName << std::setw(8) << fi.width << fi.precision << "\n";
 		}
 
-		// 5. ìˆ˜ì¢… ê´€ë ¨ í•„ë“œ ê²€ì¦
-		std::cout << "â•Ÿâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â•¢\n";
-		std::cout << "â•‘ [ìˆ˜ì¢… íŒë³„ ê´€ë ¨ í•„ë“œ ê²€ì¦]                       â•‘\n";
-		std::cout << "â•Ÿâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â•¢\n";
-		
+		// 5. ¼öÁ¾ °ü·Ã ÇÊµå °ËÁõ
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
+		std::cout << "| [¼öÁ¾ ÆÇº° °ü·Ã ÇÊµå °ËÁõ]                       |\n";
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
+
 		ForestLoader::checkRequiredFields(f);
 
-		// 6. ìˆ˜ì¢… ë¶„í¬ í†µê³„
+		// 6. ¼öÁ¾ ºĞÆ÷ Åë°è
 		if (!f.speciesCodeCount.empty())
 		{
-			std::cout << "â•Ÿâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â•¢\n";
-			std::cout << "â•‘ [ìˆ˜ì¢… ì½”ë“œ ë¶„í¬ (KOFTR_GROU)]                   â•‘\n";
-			std::cout << "â•Ÿâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â•¢\n";
-		
+			std::cout << "------------------------------------------------------------------------------------------------------\n";
+			std::cout << "| [¼öÁ¾ ÄÚµå ºĞÆ÷ (KOFTR_GROU)]                   |\n";
+			std::cout << "------------------------------------------------------------------------------------------------------\n";
+
 			//printSpeciesStats(f);
 		}
 
-		// 7. ì í•©ì„± ì¢…í•© íŒë‹¨
-		std::cout << "â•Ÿâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â•¢\n";
-		std::cout << "â•‘ [ìˆ˜ì¢… íŒë³„ ì í•©ì„± ì¢…í•© ê²€í† ]                     â•‘\n";
-		std::cout << "â•Ÿâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â•¢\n";
-		
+		// 7. ÀûÇÕ¼º Á¾ÇÕ ÆÇ´Ü
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
+		std::cout << "| [¼öÁ¾ ÆÇº° ÀûÇÕ¼º Á¾ÇÕ °ËÅä]                     |\n";
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
+
 		checkSuitability(f);
 
-		std::cout << "â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•\n";
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
 	}
 
 	static void release(ForestLayer& layer)
@@ -633,25 +633,25 @@ public:
 		layer.features.clear();
 	}
 
-	// ë¡œë“œëœ ForestLayer ë¥¼ ë‹¨ì¼ SHP íŒŒì¼ë¡œ ì €ì¥
+	// ·ÎµåµÈ ForestLayer ¸¦ ´ÜÀÏ SHP ÆÄÀÏ·Î ÀúÀå
 	static void exportToSHP(const ForestLayer& layer, const std::string& outPath)
 	{
-		// â”€â”€ ESRI Shapefile ë“œë¼ì´ë²„ â”€â”€
+		// ¦¡¦¡ ESRI Shapefile µå¶óÀÌ¹ö ¦¡¦¡
 		GDALDriver* pDriver = GetGDALDriverManager()->GetDriverByName("ESRI Shapefile");
 
 		if (!pDriver)
 		{
-			std::cerr << "ESRI Shapefile ë“œë¼ì´ë²„ë¥¼ ì°¾ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤.\n";
+			std::cerr << "ESRI Shapefile µå¶óÀÌ¹ö¸¦ Ã£À» ¼ö ¾ø½À´Ï´Ù.\n";
 
 			return;
 		}
 
-		// â”€â”€ ì¶œë ¥ ë°ì´í„°ì†ŒìŠ¤ ìƒì„± â”€â”€
+		// ¦¡¦¡ Ãâ·Â µ¥ÀÌÅÍ¼Ò½º »ı¼º ¦¡¦¡
 		GDALDataset* pOutDS = pDriver->Create(outPath.c_str(), 0, 0, 0, GDT_Unknown, nullptr);
 
 		if (!pOutDS)
 		{
-			throw std::runtime_error("ì¶œë ¥ íŒŒì¼ ìƒì„± ì‹¤íŒ¨: " + outPath);
+			throw std::runtime_error("Ãâ·Â ÆÄÀÏ »ı¼º ½ÇÆĞ: " + outPath);
 		}
 
 		struct DSGuard
@@ -664,7 +664,7 @@ public:
 			}
 		} g{pOutDS};
 
-		// â”€â”€ ì¢Œí‘œê³„ ì„¤ì • (ì²« ë²ˆì§¸ ì†ŒìŠ¤ PRJ ì‚¬ìš©) â”€â”€
+		// ¦¡¦¡ ÁÂÇ¥°è ¼³Á¤ (Ã¹ ¹øÂ° ¼Ò½º PRJ »ç¿ë) ¦¡¦¡
 		OGRSpatialReference* pSRS = nullptr;
 
 		if (!layer.projection.empty())
@@ -673,7 +673,7 @@ public:
 			pSRS->importFromWkt(layer.projection.c_str());
 		}
 
-		// â”€â”€ geometry íƒ€ì… ê²°ì • (ì²« ë²ˆì§¸ í”¼ì²˜ ê¸°ì¤€) â”€â”€
+		// ¦¡¦¡ geometry Å¸ÀÔ °áÁ¤ (Ã¹ ¹øÂ° ÇÇÃ³ ±âÁØ) ¦¡¦¡
 		OGRwkbGeometryType geomType = wkbPolygon;
 
 		for (auto& f : layer.features)
@@ -686,7 +686,7 @@ public:
 			}
 		}
 
-		// â”€â”€ ë ˆì´ì–´ ìƒì„± â”€â”€
+		// ¦¡¦¡ ·¹ÀÌ¾î »ı¼º ¦¡¦¡
 		OGRLayer* pOutLayer = pOutDS->CreateLayer("forest_merged", pSRS, geomType, nullptr);
 
 		if (!pOutLayer)
@@ -695,7 +695,7 @@ public:
 			{
 				pSRS->Release();
 
-				throw std::runtime_error("ë ˆì´ì–´ ìƒì„± ì‹¤íŒ¨");
+				throw std::runtime_error("·¹ÀÌ¾î »ı¼º ½ÇÆĞ");
 			}
 		}
 
@@ -704,8 +704,8 @@ public:
 			pSRS->Release();
 		}
 	
-		// â”€â”€ í•„ë“œ ì •ì˜ ì¶”ê°€ â”€â”€
-		// ì›ë³¸ SHP ë¥¼ ì—´ì–´ í•„ë“œ íƒ€ì… ì •ë³´ë¥¼ ê°€ì ¸ì˜´
+		// ¦¡¦¡ ÇÊµå Á¤ÀÇ Ãß°¡ ¦¡¦¡
+		// ¿øº» SHP ¸¦ ¿­¾î ÇÊµå Å¸ÀÔ Á¤º¸¸¦ °¡Á®¿È
 		GDALDataset* pSrcDS = nullptr;
 
 		if (!layer.sourcePaths.empty())
@@ -733,8 +733,8 @@ public:
 
 				OGRFieldDefn fieldDef(*pSrcDefn->GetFieldDefn(i));
 
-				// í•„ë“œëª…ì— ASCII ë²”ìœ„ ë°– ë¬¸ìê°€ ìˆìœ¼ë©´ ì˜ë¬¸ëª…ìœ¼ë¡œ ëŒ€ì²´
-				// (DBFëŠ” ISO-8859-1ë§Œ í—ˆìš© â†’ í•œê¸€ í•„ë“œëª… ì €ì¥ ë¶ˆê°€)
+				// ÇÊµå¸í¿¡ ASCII ¹üÀ§ ¹Û ¹®ÀÚ°¡ ÀÖÀ¸¸é ¿µ¹®¸íÀ¸·Î ´ëÃ¼
+				// (DBF´Â ISO-8859-1¸¸ Çã¿ë ¡æ ÇÑ±Û ÇÊµå¸í ÀúÀå ºÒ°¡)
 				const std::string szOriginName = fieldDef.GetNameRef();
 				bool bHasNonAscii = false;
 
@@ -750,8 +750,8 @@ public:
 
 				if (bHasNonAscii)
 				{
-					// ë¡œë”© ë””ë²„ê·¸ ì¶œë ¥ì—ì„œ í™•ì¸í•œ í•„ë“œ ìˆœì„œ ê¸°ì¤€ìœ¼ë¡œ ë§¤í•‘
-					// ì‹¤ì œ ë°ì´í„°ì˜ í•œê¸€ í•„ë“œê°€ ì¶”ê°€ë˜ë©´ ì—¬ê¸°ì— ì¶”ê°€
+					// ·Îµù µğ¹ö±× Ãâ·Â¿¡¼­ È®ÀÎÇÑ ÇÊµå ¼ø¼­ ±âÁØÀ¸·Î ¸ÅÇÎ
+					// ½ÇÁ¦ µ¥ÀÌÅÍÀÇ ÇÑ±Û ÇÊµå°¡ Ãß°¡µÇ¸é ¿©±â¿¡ Ãß°¡
 					static const std::map<int, std::string> fallbackNames =
 					{
 						{10, "UPDATE_YR"},
@@ -771,7 +771,7 @@ public:
 		}
 		else
 		{
-			// ì›ë³¸ ëª» ì—´ë©´ ëª¨ë“  í•„ë“œë¥¼ ë¬¸ìì—´ë¡œ ìƒì„±
+			// ¿øº» ¸ø ¿­¸é ¸ğµç ÇÊµå¸¦ ¹®ÀÚ¿­·Î »ı¼º
 			for (auto& fd : layer.fields)
 			{
 				OGRFieldDefn fieldDef(fd.name.c_str(), OFTString);
@@ -785,7 +785,7 @@ public:
 			GDALClose(pSrcDS);
 		}
 
-		// â”€â”€ í”¼ì²˜ ì“°ê¸° â”€â”€
+		// ¦¡¦¡ ÇÇÃ³ ¾²±â ¦¡¦¡
 		OGRFeatureDefn* pOutDefn = pOutLayer->GetLayerDefn();
 
 		for (int i = 0 ; i < pOutDefn->GetFieldCount() ; ++i)
@@ -807,7 +807,7 @@ public:
 
 			OGRFeature* pOutFeature = OGRFeature::CreateFeature(pOutDefn);
 
-			// ì†ì„± ì„¤ì •
+			// ¼Ó¼º ¼³Á¤
 			for (int i = 0 ; i < pOutDefn->GetFieldCount() ; ++i)
 			{
 				const char* pszFName = pOutDefn->GetFieldDefn(i)->GetNameRef();
@@ -819,7 +819,7 @@ public:
 				}
 			}
 
-			// geometry ì„¤ì •
+			// geometry ¼³Á¤
 			pOutFeature->SetGeometry(f.geometry);
 
 			if (pOutLayer->CreateFeature(pOutFeature) != OGRERR_NONE)
@@ -834,7 +834,7 @@ public:
 			OGRFeature::DestroyFeature(pOutFeature);
 		}
 
-		std::cout << "SHP ì €ì¥ ì™„ë£Œ: " << outPath << "\n" << "  ì €ì¥ëœ í”¼ì²˜ : " << written << "\n" << "  ê±´ë„ˆëœ€      : " << skipped << "\n";
+		std::cout << "SHP ÀúÀå ¿Ï·á: " << outPath << "\n" << "  ÀúÀåµÈ ÇÇÃ³ : " << written << "\n" << "  °Ç³Ê¶Ü      : " << skipped << "\n";
 
 /*
 		for (auto& f : layer.features)
@@ -851,7 +851,7 @@ private:
 
 	static void parseProjection(const OGRSpatialReference* pSRS, ForestLayer& fl)
 	{
-		// EPSG ì½”ë“œ
+		// EPSG ÄÚµå
 		const char* auth = pSRS->GetAuthorityCode(nullptr);
 
 		if (auth)
@@ -859,7 +859,7 @@ private:
 			fl.epsg = std::atoi(auth);
 		}
 
-		// íˆ¬ì˜ ì´ë¦„
+		// Åõ¿µ ÀÌ¸§
 		const char* projName = pSRS->GetAttrValue("PROJCS");
 
 		if (projName)
@@ -876,7 +876,7 @@ private:
 			}
 		}
 
-		// ë°ì´í…€
+		// µ¥ÀÌÅÒ
 		const char* datumStr = pSRS->GetAttrValue("DATUM");
 
 		if (datumStr)
@@ -884,7 +884,7 @@ private:
 			fl.datum = datumStr;
 		}
 
-		// ì¢Œí‘œ ë‹¨ìœ„
+		// ÁÂÇ¥ ´ÜÀ§
 		char* unitName = nullptr;
 
 		if (pSRS->IsProjected())
@@ -917,27 +917,27 @@ private:
 		combinedEnvelope.MaxY = std::max(combinedEnvelope.MaxY, part.MaxY);
 	}
 
-	// í•„ìˆ˜ í•„ë“œ ê²€ì¦
+	// ÇÊ¼ö ÇÊµå °ËÁõ
 	static void checkRequiredFields(const ForestLayer& f)
 	{
-		// ìˆ˜ì¢… íŒë³„ì— í•„ìš”í•œ í•µì‹¬ í•„ë“œ ëª©ë¡
+		// ¼öÁ¾ ÆÇº°¿¡ ÇÊ¿äÇÑ ÇÙ½É ÇÊµå ¸ñ·Ï
 		struct RequiredField
 		{
 			std::string name;
 			std::string description;
-			bool critical;						// true=í•„ìˆ˜, false=ê¶Œì¥
+			bool critical;						// true=ÇÊ¼ö, false=±ÇÀå
 		};
 
 		std::vector<RequiredField> required =
 		{
-			 {"KOFTR_GROU", "ìˆ˜ì¢… ê·¸ë£¹ ì½”ë“œ (í•™ìŠµ ë ˆì´ë¸”)",  true},
-			 {"KOFTR_NM",   "ìˆ˜ì¢… ì´ë¦„",                     true},
-			 {"FROR_NM",    "ì„ìƒ ì´ë¦„",                     false},
-			 {"DMCLS_CD",   "ì˜ê¸‰ ì½”ë“œ",                     false},
-			 {"DNST_CD",    "ë°€ë„ ì½”ë“œ",                     false},
-			 {"KOFTR_CD",   "ìˆ˜ì¢… ì½”ë“œ (ìƒì„¸)",              false},
-			 {"AGE_CLS",    "ì˜ê¸‰",                          false},
-			 {"FRTP_CD",    "ì„ìƒ ì½”ë“œ",                     false},
+			 {"KOFTR_GROU", "¼öÁ¾ ±×·ì ÄÚµå (ÇĞ½À ·¹ÀÌºí)",  true},
+			 {"KOFTR_NM",   "¼öÁ¾ ÀÌ¸§",                     true},
+			 {"FROR_NM",    "ÀÓ»ó ÀÌ¸§",                     false},
+			 {"DMCLS_CD",   "¿µ±Ş ÄÚµå",                     false},
+			 {"DNST_CD",    "¹Ğµµ ÄÚµå",                     false},
+			 {"KOFTR_CD",   "¼öÁ¾ ÄÚµå (»ó¼¼)",              false},
+			 {"AGE_CLS",    "¿µ±Ş",                          false},
+			 {"FRTP_CD",    "ÀÓ»ó ÄÚµå",                     false},
 		};
 
 		std::set<std::string> fieldNames;
@@ -950,26 +950,26 @@ private:
 		for (auto& req : required)
 		{
 			bool exists = fieldNames.count(req.name) > 0;
-			std::string icon = exists ? "âœ“" : (req.critical ? "âœ— [í•„ìˆ˜]" : "- [ì„ íƒ]");
+			std::string icon = exists ? "v" : (req.critical ? "x [ÇÊ¼ö]" : "- [¼±ÅÃ]");
 
-			std::cout << "  " << icon << " " << std::setw(15) << std::left << req.name << " : " << req.description << (exists ? "" : " â†’ ì—†ìŒ") << "\n";
+			std::cout << "  " << icon << " " << std::setw(15) << std::left << req.name << " : " << req.description << (exists ? "" : " -> ¾øÀ½") << "\n";
 		}
 
-		// í•„ìˆ˜ í•„ë“œ ëˆ„ë½ ê²½ê³ 
+		// ÇÊ¼ö ÇÊµå ´©¶ô °æ°í
 		bool hasCritical = fieldNames.count(SPECIES_CODE) > 0;
 
 		if (!hasCritical)
 		{
-			std::cout << "\n  âš  í•µì‹¬ í•„ë“œ KOFTR_GROU ê°€ ì—†ìŠµë‹ˆë‹¤!\n"
-				<< "    â†’ ì„ìƒë„ì—ì„œ ìˆ˜ì¢… ë ˆì´ë¸”ì„ ë¶€ì—¬í•  ìˆ˜ ì—†ìŠµë‹ˆë‹¤.\n"
-				<< "    â†’ í•„ë“œ ì´ë¦„ì´ ë‹¤ë¥¼ ìˆ˜ ìˆìœ¼ë‹ˆ ìœ„ ëª©ë¡ì„ í™•ì¸í•˜ì„¸ìš”.\n";
+			std::cout << "\n  ! ÇÙ½É ÇÊµå KOFTR_GROU °¡ ¾ø½À´Ï´Ù!\n"
+				<< "    -> ÀÓ»óµµ¿¡¼­ ¼öÁ¾ ·¹ÀÌºíÀ» ºÎ¿©ÇÒ ¼ö ¾ø½À´Ï´Ù.\n"
+				<< "    -> ÇÊµå ÀÌ¸§ÀÌ ´Ù¸¦ ¼ö ÀÖÀ¸´Ï À§ ¸ñ·ÏÀ» È®ÀÎÇÏ¼¼¿ä.\n";
 		}
 	}
 
-	// ìˆ˜ì¢… ë¶„í¬ í†µê³„
+	// ¼öÁ¾ ºĞÆ÷ Åë°è
 	static void printSpeciesStats(const ForestLayer& f)
 	{
-		// í”¼ì²˜ ìˆ˜ ê¸°ì¤€ ì •ë ¬ (ë‚´ë¦¼ì°¨ìˆœ)
+		// ÇÇÃ³ ¼ö ±âÁØ Á¤·Ä (³»¸²Â÷¼ø)
 		std::vector<std::pair<std::string, int>> sorted(f.speciesCodeCount.begin(), f.speciesCodeCount.end());
 		std::sort(sorted.begin(), sorted.end(), [](auto& a, auto& b) { return a.second > b.second; });
 
@@ -979,7 +979,7 @@ private:
 			totalLabeled += kv.second;
 		}
 
-		std::cout << "  " << std::left << std::setw(12) << "ì½”ë“œ" << std::setw(10) << "í”¼ì²˜ ìˆ˜" << std::setw(10) << "ë¹„ìœ¨(%)" << "ë©´ì  í•©\n";
+		std::cout << "  " << std::left << std::setw(12) << "ÄÚµå" << std::setw(10) << "ÇÇÃ³ ¼ö" << std::setw(10) << "ºñÀ²(%)" << "¸éÀû ÇÕ\n";
 		std::cout << "  " << std::string(48, '-') << "\n";
 
 		int showCount = std::min((int)sorted.size(), 20);
@@ -999,21 +999,21 @@ private:
 
 		if ((int)sorted.size() > showCount)
 		{
-			std::cout << "  ... ì™¸ " << (sorted.size() - showCount) << "ê°œ ìˆ˜ì¢…\n";
+			std::cout << "  ... ¿Ü " << (sorted.size() - showCount) << "°³ ¼öÁ¾\n";
 		}
 
-		std::cout << "  â”€â”€â”€â”€â”€â”€â”€â”€\n";
-		std::cout << "  ì „ì²´ ë ˆì´ë¸” í”¼ì²˜: " << totalLabeled << "\n";
+		std::cout << "  ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡\n";
+		std::cout << "  ÀüÃ¼ ·¹ÀÌºí ÇÇÃ³: " << totalLabeled << "\n";
 
 		if (f.nullSpeciesCount > 0)
 		{
-			std::cout << "  ìˆ˜ì¢… ë¯¸ì§€ì • í”¼ì²˜ : " << f.nullSpeciesCount << "\n";
+			std::cout << "  ¼öÁ¾ ¹ÌÁöÁ¤ ÇÇÃ³ : " << f.nullSpeciesCount << "\n";
 		}
 
-		// KOFTR_NM ë§¤í•‘ (ì½”ë“œ â†” ì´ë¦„)
+		// KOFTR_NM ¸ÅÇÎ (ÄÚµå ¡ê ÀÌ¸§)
 		if (!f.speciesNameCount.empty())
 		{
-			std::cout << "\n  [ìˆ˜ì¢… ì´ë¦„ (KOFTR_NM) ë¶„í¬]\n";
+			std::cout << "\n  [¼öÁ¾ ÀÌ¸§ (KOFTR_NM) ºĞÆ÷]\n";
 			std::vector<std::pair<std::string, int>> nameSorted(f.speciesNameCount.begin(), f.speciesNameCount.end());
 			std::sort(nameSorted.begin(), nameSorted.end(), [](auto& a, auto& b) { return a.second > b.second; });
 
@@ -1026,65 +1026,65 @@ private:
 
 			if ((int)nameSorted.size() > nameShow)
 			{
-				std::cout << "  ... ì™¸ " << (nameSorted.size() - nameShow) << "ê°œ\n";
+				std::cout << "  ... ¿Ü " << (nameSorted.size() - nameShow) << "°³\n";
 			}
 		}
 	}
 
-	// ì í•©ì„± ì¢…í•© íŒë‹¨
+	// ÀûÇÕ¼º Á¾ÇÕ ÆÇ´Ü
 	static void checkSuitability(const ForestLayer& f)
 	{
 		bool allGood = true;
 
-		// ì¢Œí‘œê³„ í™•ì¸
+		// ÁÂÇ¥°è È®ÀÎ
 		if (f.epsg == 0)
 		{
-			std::cout << "  âš  ì¢Œí‘œê³„(EPSG)ë¥¼ ì‹ë³„í•  ìˆ˜ ì—†ìŠµë‹ˆë‹¤.\n"
-				<< "    â†’ .prj íŒŒì¼ì´ ì—†ê±°ë‚˜ ë¹„í‘œì¤€ ì¢Œí‘œê³„ì¼ ìˆ˜ ìˆìŠµë‹ˆë‹¤.\n";
+			std::cout << "  ! ÁÂÇ¥°è(EPSG)¸¦ ½Äº°ÇÒ ¼ö ¾ø½À´Ï´Ù.\n"
+				<< "    -> .prj ÆÄÀÏÀÌ ¾ø°Å³ª ºñÇ¥ÁØ ÁÂÇ¥°èÀÏ ¼ö ÀÖ½À´Ï´Ù.\n";
 
 			allGood = false;
 		}
 		else if (f.epsg == 5179 || f.epsg == 5186 || f.epsg == 5174)
 		{
-			std::cout << "  âœ“ ì¢Œí‘œê³„ EPSG:" << f.epsg << " â†’ í•œêµ­ í‘œì¤€ ì¢Œí‘œê³„ì…ë‹ˆë‹¤.\n";
+			std::cout << "  v ÁÂÇ¥°è EPSG:" << f.epsg << " -> ÇÑ±¹ Ç¥ÁØ ÁÂÇ¥°èÀÔ´Ï´Ù.\n";
 		}
 		else if (f.epsg == 4326)
 		{
-			std::cout << "  âš  WGS84 ê²½ìœ„ë„(EPSG:4326)ì…ë‹ˆë‹¤.\n"
-				<< "    â†’ ë©´ì /ê±°ë¦¬ ê³„ì‚°ì— íˆ¬ì˜ì¢Œí‘œê³„ ë³€í™˜ì´ í•„ìš”í•©ë‹ˆë‹¤.\n";
+			std::cout << "  ! WGS84 °æÀ§µµ(EPSG:4326)ÀÔ´Ï´Ù.\n"
+				<< "    -> ¸éÀû/°Å¸® °è»ê¿¡ Åõ¿µÁÂÇ¥°è º¯È¯ÀÌ ÇÊ¿äÇÕ´Ï´Ù.\n";
 
 			allGood = false;
 		}
 		else
 		{
-			std::cout << "  â–³ EPSG:" << f.epsg << " â†’ í•­ê³µì‚¬ì§„/LiDARì™€ ì¢Œí‘œê³„ ì¼ì¹˜ë¥¼ í™•ì¸í•˜ì„¸ìš”.\n";
+			std::cout << "  v EPSG:" << f.epsg << " -> Ç×°ø»çÁø/LiDAR¿Í ÁÂÇ¥°è ÀÏÄ¡¸¦ È®ÀÎÇÏ¼¼¿ä.\n";
 		}
 
-		// ì§€ì˜¤ë©”íŠ¸ë¦¬ íƒ€ì… í™•ì¸
+		// Áö¿À¸ŞÆ®¸® Å¸ÀÔ È®ÀÎ
 		if (f.geomType == wkbPolygon || f.geomType == wkbMultiPolygon || f.geomType == wkbPolygon25D || f.geomType == wkbMultiPolygon25D)
 		{
-			std::cout << "  âœ“ í´ë¦¬ê³¤ ì§€ì˜¤ë©”íŠ¸ë¦¬ â†’ Contains() ì—°ì‚° ê°€ëŠ¥\n";
+			std::cout << "  v Æú¸®°ï Áö¿À¸ŞÆ®¸® -> Contains() ¿¬»ê °¡´É\n";
 		}
 		else
 		{
-			std::cout << "  âš  ì§€ì˜¤ë©”íŠ¸ë¦¬ íƒ€ì…ì´ " << f.geomTypeName << " â†’ í´ë¦¬ê³¤ì´ ì•„ë‹™ë‹ˆë‹¤.\n";
+			std::cout << "  ! Áö¿À¸ŞÆ®¸® Å¸ÀÔÀÌ " << f.geomTypeName << " -> Æú¸®°ïÀÌ ¾Æ´Õ´Ï´Ù.\n";
 
 			allGood = false;
 		}
 
-		// í”¼ì²˜ ìˆ˜ í™•ì¸
+		// ÇÇÃ³ ¼ö È®ÀÎ
 		if (f.totalFeatures > 0)
 		{
-			std::cout << "  âœ“ í”¼ì²˜ " << f.totalFeatures << "ê°œ í™•ì¸\n";
+			std::cout << "  v ÇÇÃ³ " << f.totalFeatures << "°³ È®ÀÎ\n";
 		}
 		else
 		{
-			std::cout << "  âš  í”¼ì²˜ê°€ ì—†ìŠµë‹ˆë‹¤.\n";
+			std::cout << "  ! ÇÇÃ³°¡ ¾ø½À´Ï´Ù.\n";
 
 			allGood = false;
 		}
 
-		// ìˆ˜ì¢… í•„ë“œ í™•ì¸
+		// ¼öÁ¾ ÇÊµå È®ÀÎ
 		bool hasKoftrGrou = false;
 
 		for (auto& fi : f.fields)
@@ -1099,27 +1099,27 @@ private:
 
 		if (hasKoftrGrou)
 		{
-			std::cout << "  âœ“ KOFTR_GROU í•„ë“œ ìˆìŒ â†’ ìˆ˜ì¢… ë ˆì´ë¸” ë¶€ì—¬ ê°€ëŠ¥\n";
+			std::cout << "  v KOFTR_GROU ÇÊµå ÀÖÀ½ -> ¼öÁ¾ ·¹ÀÌºí ºÎ¿© °¡´É\n";
 
 			if (!f.speciesCodeCount.empty())
 			{
-				std::cout << "  âœ“ " << f.speciesCodeCount.size() << "ê°œ ìˆ˜ì¢… ì½”ë“œ í™•ì¸ë¨\n";
+				std::cout << "  v " << f.speciesCodeCount.size() << "°³ ¼öÁ¾ ÄÚµå È®ÀÎµÊ\n";
 			}
 		}
 		else
 		{
-			std::cout << "  âš  KOFTR_GROU í•„ë“œ ì—†ìŒ â†’ ìˆ˜ì¢… ë ˆì´ë¸” ë¶€ì—¬ ë¶ˆê°€\n";
+			std::cout << "  ! KOFTR_GROU ÇÊµå ¾øÀ½ ¡æ ¼öÁ¾ ·¹ÀÌºí ºÎ¿© ºÒ°¡\n";
 			allGood = false;
 		}
 
-		// ë¹ˆ ì§€ì˜¤ë©”íŠ¸ë¦¬ ë¹„ìœ¨
+		// ºó Áö¿À¸ŞÆ®¸® ºñÀ²
 		if (f.emptyGeomCount > 0 && f.totalFeatures > 0)
 		{
 			double emptyPct = 100.0 * f.emptyGeomCount / f.totalFeatures;
 
 			if (emptyPct > 10.0)
 			{
-				std::cout << "  âš  ë¹ˆ ì§€ì˜¤ë©”íŠ¸ë¦¬ " << std::setprecision(1) << emptyPct << "% â†’ ë°ì´í„° í’ˆì§ˆ í™•ì¸ í•„ìš”\n";
+				std::cout << "  ! ºó Áö¿À¸ŞÆ®¸® " << std::setprecision(1) << emptyPct << "% -> µ¥ÀÌÅÍ Ç°Áú È®ÀÎ ÇÊ¿ä\n";
 				std::cout << std::setprecision(6);
 
 				allGood = false;
@@ -1128,30 +1128,30 @@ private:
 
 		if (allGood)
 		{
-			std::cout << "\n  â˜… ì¢…í•©: ìˆ˜ì¢… íŒë³„ í”„ë¡œì íŠ¸ì— ì í•©í•œ ì„ìƒë„ì…ë‹ˆë‹¤.\n";
+			std::cout << "\n  !! Á¾ÇÕ: ¼öÁ¾ ÆÇº° ÇÁ·ÎÁ§Æ®¿¡ ÀûÇÕÇÑ ÀÓ»óµµÀÔ´Ï´Ù.\n";
 		}
 		else
 		{
-			std::cout << "\n  â˜… ì¢…í•©: ìœ„ ì£¼ì˜ì‚¬í•­ì„ í™•ì¸/ë³´ì™„í•œ í›„ ì‚¬ìš©í•˜ì„¸ìš”.\n";
+			std::cout << "\n  !! Á¾ÇÕ: À§ ÁÖÀÇ»çÇ×À» È®ÀÎ/º¸¿ÏÇÑ ÈÄ »ç¿ëÇÏ¼¼¿ä.\n";
 		}
 	}
 };
 
 inline void printSummary(const ForestLayer & layer)
 {
-	std::cout << "=== ì„ìƒë„ ë ˆì´ì–´ ìš”ì•½ ===\n" << "ë ˆì´ì–´ ì´ë¦„  : " << layer.layerName << "\n" << "ì†ŒìŠ¤ íŒŒì¼ ìˆ˜ : " << layer.sourcePaths.size() << "\n";
+	std::cout << "=== ÀÓ»óµµ ·¹ÀÌ¾î ¿ä¾à ===\n" << "·¹ÀÌ¾î ÀÌ¸§  : " << layer.layerName << "\n" << "¼Ò½º ÆÄÀÏ ¼ö : " << layer.sourcePaths.size() << "\n";
 
 	for ( int i = 0 ; i < (int)layer.sourcePaths.size() ; ++i)
 	{
 		std::cout << "  [" << i << "] " << layer.sourcePaths[i] << "\n";
 	}
 
-	std::cout << "ì´ í”¼ì²˜ ìˆ˜   : " << layer.features.size() << "\n"
-		<< "í†µí•© ë²”ìœ„    : ("
+	std::cout << "ÃÑ ÇÇÃ³ ¼ö   : " << layer.features.size() << "\n"
+		<< "ÅëÇÕ ¹üÀ§    : ("
 		<< layer.extent.MinX << ", " << layer.extent.MinY << ") ~ ("
 		<< layer.extent.MaxX << ", " << layer.extent.MaxY << ")\n"
-		<< "ì¢Œí‘œê³„(WKT)  : " << layer.projection.substr(0, 80) << "...\n"
-		<< "ì†ì„± í•„ë“œ    : ";
+		<< "ÁÂÇ¥°è(WKT)  : " << layer.projection.substr(0, 80) << "...\n"
+		<< "¼Ó¼º ÇÊµå    : ";
 
 	for (auto& fd : layer.fields)
 	{

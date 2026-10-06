@@ -1,4 +1,4 @@
-ï»¿#pragma once
+#pragma once
 
 #include "ForestCommon.h"
 
@@ -6,33 +6,33 @@ struct AerialPhoto
 {
 	cv::Mat image;
 
-	// ì§€ë¦¬ ì°¸ì¡° ì •ë³´ (GeoTransform 6ê°œ íŒŒë¼ë¯¸í„°)
-	double originX = 0;					// ì¢Œìƒë‹¨ X ì¢Œí‘œ
-	double originY = 0;					// ì¢Œìƒë‹¨ Y ì¢Œí‘œ
-	double pixelW = 0;					// X ë°©í–¥ í”½ì…€ í¬ê¸° (m ë˜ëŠ” ë„)
-	double pixelH = 0;					// Y ë°©í–¥ í”½ì…€ í¬ê¸° (ë³´í†µ ìŒìˆ˜)
-	double rotationX = 0;				// X ë°©í–¥ íšŒì „ (ë³´í†µ 0)
-	double rotationY = 0;				// Y ë°©í–¥ íšŒì „ (ë³´í†µ 0)
-	// ê³„ì‚°ëœ ë²”ìœ„ (Bounding Box)
+	// Áö¸® ÂüÁ¶ Á¤º¸ (GeoTransform 6°³ ÆÄ¶ó¹ÌÅÍ)
+	double originX = 0;					// ÁÂ»ó´Ü X ÁÂÇ¥
+	double originY = 0;					// ÁÂ»ó´Ü Y ÁÂÇ¥
+	double pixelW = 0;					// X ¹æÇâ ÇÈ¼¿ Å©±â (m ¶Ç´Â µµ)
+	double pixelH = 0;					// Y ¹æÇâ ÇÈ¼¿ Å©±â (º¸Åë À½¼ö)
+	double rotationX = 0;				// X ¹æÇâ È¸Àü (º¸Åë 0)
+	double rotationY = 0;				// Y ¹æÇâ È¸Àü (º¸Åë 0)
+	// °è»êµÈ ¹üÀ§ (Bounding Box)
 	double geoMinX = 0;
 	double geoMaxX = 0;
 	double geoMinY = 0;
 	double geoMaxY = 0;
 
-	// ë©”íƒ€ ì •ë³´
-	double resolution = 0;				// m/í”½ì…€ (gt[1])
+	// ¸ŞÅ¸ Á¤º¸
+	double resolution = 0;				// m/ÇÈ¼¿ (gt[1])
 	std::string prj;
-	int width = 0;							// í”½ì…€ ë„ˆë¹„ (m/px)
-	int height = 0;							// í”½ì…€ ë†’ì´
-	std::string projection;				// WKT íˆ¬ì˜ ì •ë³´
-	std::string projName;				// íˆ¬ì˜ ì´ë¦„ (ê°„ëµ)
-	int epsg = -1;							// EPSG ì½”ë“œ
-	std::string datum;						// ë°ì´í…€ ì´ë¦„
-	std::string units;						// ì¢Œí‘œ ë‹¨ìœ„ (metre, degree ë“±)
-	std::string driverName;			// GDAL ë“œë¼ì´ë²„ ì´ë¦„
-	int bands = 0;							// ë°´ë“œ ìˆ˜
-	std::vector<GDALDataType> bandTypes;			// ë°´ë“œë³„ ë°ì´í„° íƒ€ì…
-	std::vector<double> bandNoData;						// ë°´ë“œë³„ NoData ê°’
+	int width = 0;							// ÇÈ¼¿ ³Êºñ (m/px)
+	int height = 0;							// ÇÈ¼¿ ³ôÀÌ
+	std::string projection;				// WKT Åõ¿µ Á¤º¸
+	std::string projName;				// Åõ¿µ ÀÌ¸§ (°£·«)
+	int epsg = -1;							// EPSG ÄÚµå
+	std::string datum;						// µ¥ÀÌÅÒ ÀÌ¸§
+	std::string units;						// ÁÂÇ¥ ´ÜÀ§ (metre, degree µî)
+	std::string driverName;			// GDAL µå¶óÀÌ¹ö ÀÌ¸§
+	int bands = 0;							// ¹êµå ¼ö
+	std::vector<GDALDataType> bandTypes;			// ¹êµåº° µ¥ÀÌÅÍ Å¸ÀÔ
+	std::vector<double> bandNoData;						// ¹êµåº° NoData °ª
 	std::vector<bool> bandHasNoData;
 };
 
@@ -40,7 +40,7 @@ class AerialLoader
 {
 public:
 
-	// â”€â”€â”€ GeoTIFF loading (image + metadata) â”€â”€â”€
+	// ¦¡¦¡¦¡ GeoTIFF loading (image + metadata) ¦¡¦¡¦¡
 	static AerialPhoto load(const std::string& path)
 	{
 		// Enable GDAL error reporting
@@ -66,18 +66,18 @@ public:
 		
 		AerialPhoto photo;
 
-		// ê¸°ë³¸ ì •ë³´
+		// ±âº» Á¤º¸
 		photo.width = pDS->GetRasterXSize();
 		photo.height = pDS->GetRasterYSize();
 		photo.bands = pDS->GetRasterCount();
 		photo.driverName = pDS->GetDriver()->GetDescription();
 
-		// GeoTransform â†’ ì§€ë¦¬ ë²”ìœ„
+		// GeoTransform ¡æ Áö¸® ¹üÀ§
 		double gt[6];
 
 		if (pDS->GetGeoTransform(gt) != CE_None)
 		{
-			throw std::runtime_error("Can't find GeoTransform: ì¢Œí‘œ ì •ë³´ê°€ ì—†ëŠ” ì´ë¯¸ì§€");
+			throw std::runtime_error("Can't find GeoTransform: ÁÂÇ¥ Á¤º¸°¡ ¾ø´Â ÀÌ¹ÌÁö");
 		}
 
 		photo.originX = gt[0];
@@ -92,7 +92,7 @@ public:
 		photo.geoMaxX = gt[0] + photo.width * gt[1] + photo.height * gt[2];
 		photo.geoMinY = gt[3] + photo.width * gt[4] + photo.height * gt[5];
 
-		// pixelHê°€ ìŒìˆ˜ì¼ ë•Œ MinY/MaxY ì •ë ¬
+		// pixelH°¡ À½¼öÀÏ ¶§ MinY/MaxY Á¤·Ä
 		if (photo.geoMinY > photo.geoMaxY)
 		{
 			std::swap(photo.geoMinY, photo.geoMaxY);
@@ -103,7 +103,7 @@ public:
 			std::swap(photo.geoMinX, photo.geoMaxX);
 		}
 
-		// ì¢Œí‘œê³„ ì •ë³´ íŒŒì‹±
+		// ÁÂÇ¥°è Á¤º¸ ÆÄ½Ì
 		photo.projection = pDS->GetProjectionRef() ? pDS->GetProjectionRef() : "";
 		parseProjection(photo);
 
@@ -118,7 +118,7 @@ public:
 		std::cout << "gt[3]+gt[4]*W+gt[5]*H=" << gt[3] + gt[4] * photo.width + gt[5] * photo.height << "\n";
 */
 
-		// ë˜ìŠ¤í„° ë°´ë“œ ì •ë³´
+		// ·¡½ºÅÍ ¹êµå Á¤º¸
 		for (int b = 0; b < photo.bands; ++b)
 		{
 			GDALRasterBand* band = pDS->GetRasterBand(b + 1);
@@ -131,13 +131,13 @@ public:
 			photo.bandNoData.push_back(hasNoData ? nd : 0.0);
 		}
 
-		// ì´ë¯¸ì§€ ë°ì´í„°ë¥¼ OpenCV Matìœ¼ë¡œ ë³€í™˜
+		// ÀÌ¹ÌÁö µ¥ÀÌÅÍ¸¦ OpenCV MatÀ¸·Î º¯È¯
 		photo.image = readImageData(pDS, photo);
 
 		return photo;
 	}
 
-	// â”€â”€â”€ ì¢Œí‘œ ë³€í™˜ ìœ í‹¸ë¦¬í‹°: í”½ì…€ â†” ì§€ë¦¬ ì¢Œí‘œ â”€â”€â”€
+	// ¦¡¦¡¦¡ ÁÂÇ¥ º¯È¯ À¯Æ¿¸®Æ¼: ÇÈ¼¿ ¡ê Áö¸® ÁÂÇ¥ ¦¡¦¡¦¡
 	static void pixelToGeo(const AerialPhoto& p, int px, int py, double& gx, double& gy)
 	{
 		gx = p.originX + px * p.pixelW + py * p.rotationX;
@@ -146,7 +146,7 @@ public:
 
 	static void geoToPixel(const AerialPhoto& p, double gx, double gy, int& px, int& py)
 	{
-		// íšŒì „ì´ ì—†ëŠ” ê²½ìš° (ì¼ë°˜ì )
+		// È¸ÀüÀÌ ¾ø´Â °æ¿ì (ÀÏ¹İÀû)
 		if ((std::abs(p.rotationX) < 1e-10) && (std::abs(p.rotationY) < 1e-10))
 		{
 			px = (int)std::round((gx - p.originX) / p.pixelW);
@@ -154,12 +154,12 @@ public:
 		}
 		else
 		{
-			// íšŒì „ì´ ìˆëŠ” ê²½ìš°: ì—­í–‰ë ¬ ê³„ì‚°
+			// È¸ÀüÀÌ ÀÖ´Â °æ¿ì: ¿ªÇà·Ä °è»ê
 			double det = p.pixelW * p.pixelH - p.rotationX * p.rotationY;
 
 			if (std::abs(det) < 1e-20)
 			{
-				throw std::runtime_error("GeoTransform ì—­ë³€í™˜ ë¶ˆê°€ (detâ‰ˆ0)");
+				throw std::runtime_error("GeoTransform ¿ªº¯È¯ ºÒ°¡");
 			}
 
 			double dx = gx - p.originX;
@@ -170,36 +170,36 @@ public:
 		}
 	}
 
-	// â”€â”€â”€ ë©”íƒ€ë°ì´í„° ì¶œë ¥ â”€â”€â”€
+	// ¦¡¦¡¦¡ ¸ŞÅ¸µ¥ÀÌÅÍ Ãâ·Â ¦¡¦¡¦¡
 	static void printInfo(const AerialPhoto& p)
 	{
 		std::cout << std::fixed << std::setprecision(6);
-		std::cout << "â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—\n";
-		std::cout << "â•‘     í•­ê³µì‚¬ì§„ GeoTIFF ë©”íƒ€ë°ì´í„° ì •ë³´         â•‘\n";
-		std::cout << "â• â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•£\n";
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
+		std::cout << "|     Ç×°ø»çÁø GeoTIFF ¸ŞÅ¸µ¥ÀÌÅÍ Á¤º¸         |\n";
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
 
-		// 1. ê¸°ë³¸ ì •ë³´
-		std::cout << "â•‘ [íŒŒì¼ ê¸°ë³¸ ì •ë³´]                             â•‘\n";
-		std::cout << "â•Ÿâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â•¢\n";
-		std::cout << "  ë“œë¼ì´ë²„     : " << p.driverName << "\n";
-		std::cout << "  ì´ë¯¸ì§€ í¬ê¸°  : " << p.width << " x " << p.height << " pixels\n";
-		std::cout << "  ë°´ë“œ ìˆ˜      : " << p.bands << "\n";
+		// 1. ±âº» Á¤º¸
+		std::cout << "| [ÆÄÀÏ ±âº» Á¤º¸]                             |\n";
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
+		std::cout << "  µå¶óÀÌ¹ö     : " << p.driverName << "\n";
+		std::cout << "  ÀÌ¹ÌÁö Å©±â  : " << p.width << " x " << p.height << " pixels\n";
+		std::cout << "  ¹êµå ¼ö      : " << p.bands << "\n";
 
 		if (!p.image.empty())
 		{
 			double sizeMB = (double)(p.image.total() * p.image.elemSize()) / (1024.0 * 1024.0);
-			std::cout << "  ë©”ëª¨ë¦¬ í¬ê¸°  : " << std::setprecision(1) << sizeMB << " MB\n";
+			std::cout << "  ¸Ş¸ğ¸® Å©±â  : " << std::setprecision(1) << sizeMB << " MB\n";
 		}
 
 		std::cout << std::setprecision(6);
 
-		// 2. ë°´ë“œ ì •ë³´
-		std::cout << "â•Ÿâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â•¢\n";
-		std::cout << "â•‘ [ë°´ë“œ ì •ë³´]                                  â•‘\n";
-		std::cout << "â•Ÿâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â•¢\n";
+		// 2. ¹êµå Á¤º¸
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
+		std::cout << "| [¹êµå Á¤º¸]                                  |\n";
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
 		for (int b = 0; b < p.bands; ++b)
 		{
-			std::cout << "  ë°´ë“œ " << (b + 1) << "  íƒ€ì…: " << GDALGetDataTypeName(p.bandTypes[b]);
+			std::cout << "  ¹êµå " << (b + 1) << "  Å¸ÀÔ: " << GDALGetDataTypeName(p.bandTypes[b]);
 
 			if (p.bandHasNoData[b])
 			{
@@ -207,85 +207,85 @@ public:
 			}
 			else
 			{
-				std::cout << "  NoData: ì—†ìŒ";
+				std::cout << "  NoData: ¾øÀ½";
 			}
 
 			std::cout << "\n";
 		}
 
-		// 3. ì¢Œí‘œê³„ ì •ë³´
-		std::cout << "â•Ÿâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â•¢\n";
-		std::cout << "â•‘ [ì¢Œí‘œê³„ / íˆ¬ì˜ ì •ë³´]                         â•‘\n";
-		std::cout << "â•Ÿâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â•¢\n";
-		std::cout << "  EPSG ì½”ë“œ    : " << (p.epsg > 0 ? std::to_string(p.epsg) : "í™•ì¸ ë¶ˆê°€") << "\n";
-		std::cout << "  íˆ¬ì˜ ì´ë¦„    : " << (p.projName.empty() ? "N/A" : p.projName) << "\n";
-		std::cout << "  ë°ì´í…€       : " << (p.datum.empty() ? "N/A" : p.datum) << "\n";
-		std::cout << "  ì¢Œí‘œ ë‹¨ìœ„    : " << (p.units.empty() ? "N/A" : p.units) << "\n";
+		// 3. ÁÂÇ¥°è Á¤º¸
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
+		std::cout << "| [ÁÂÇ¥°è / Åõ¿µ Á¤º¸]                         |\n";
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
+		std::cout << "  EPSG ÄÚµå    : " << (p.epsg > 0 ? std::to_string(p.epsg) : "È®ÀÎ ºÒ°¡") << "\n";
+		std::cout << "  Åõ¿µ ÀÌ¸§    : " << (p.projName.empty() ? "N/A" : p.projName) << "\n";
+		std::cout << "  µ¥ÀÌÅÒ       : " << (p.datum.empty() ? "N/A" : p.datum) << "\n";
+		std::cout << "  ÁÂÇ¥ ´ÜÀ§    : " << (p.units.empty() ? "N/A" : p.units) << "\n";
 
-		// 4. GeoTransform (ì§€ë¦¬ ì°¸ì¡°)
-		std::cout << "â•Ÿâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â•¢\n";
-		std::cout << "â•‘ [GeoTransform íŒŒë¼ë¯¸í„°]                      â•‘\n";
-		std::cout << "â•Ÿâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â•¢\n";
-		std::cout << "  ì›ì  X (ì¢Œìƒë‹¨) : " << p.originX << "\n";
-		std::cout << "  ì›ì  Y (ì¢Œìƒë‹¨) : " << p.originY << "\n";
-		std::cout << "  í”½ì…€ í¬ê¸° X     : " << p.pixelW << "\n";
-		std::cout << "  í”½ì…€ í¬ê¸° Y     : " << p.pixelH << "\n";
-		std::cout << "  íšŒì „ X          : " << p.rotationX << "\n";
-		std::cout << "  íšŒì „ Y          : " << p.rotationY << "\n";
+		// 4. GeoTransform (Áö¸® ÂüÁ¶)
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
+		std::cout << "| [GeoTransform ÆÄ¶ó¹ÌÅÍ]                      |\n";
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
+		std::cout << "  ¿øÁ¡ X (ÁÂ»ó´Ü) : " << p.originX << "\n";
+		std::cout << "  ¿øÁ¡ Y (ÁÂ»ó´Ü) : " << p.originY << "\n";
+		std::cout << "  ÇÈ¼¿ Å©±â X     : " << p.pixelW << "\n";
+		std::cout << "  ÇÈ¼¿ Å©±â Y     : " << p.pixelH << "\n";
+		std::cout << "  È¸Àü X          : " << p.rotationX << "\n";
+		std::cout << "  È¸Àü Y          : " << p.rotationY << "\n";
 
-		// 5. ë²”ìœ„ (Bounding Box)
-		std::cout << "â•Ÿâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â•¢\n";
-		std::cout << "â•‘ [ì˜ì—­ ë²”ìœ„ (Bounding Box)]                   â•‘\n";
-		std::cout << "â•Ÿâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â•¢\n";
-		std::cout << "  Min X (ì„œìª½)    : " << p.geoMinX << "\n";
-		std::cout << "  Max X (ë™ìª½)    : " << p.geoMaxX << "\n";
-		std::cout << "  Min Y (ë‚¨ìª½)    : " << p.geoMinY << "\n";
-		std::cout << "  Max Y (ë¶ìª½)    : " << p.geoMaxY << "\n";
+		// 5. ¹üÀ§ (Bounding Box)
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
+		std::cout << "| [¿µ¿ª ¹üÀ§ (Bounding Box)]                   |\n";
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
+		std::cout << "  Min X (¼­ÂÊ)    : " << p.geoMinX << "\n";
+		std::cout << "  Max X (µ¿ÂÊ)    : " << p.geoMaxX << "\n";
+		std::cout << "  Min Y (³²ÂÊ)    : " << p.geoMinY << "\n";
+		std::cout << "  Max Y (ºÏÂÊ)    : " << p.geoMaxY << "\n";
 
 		double extentX = p.geoMaxX - p.geoMinX;
 		double extentY = p.geoMaxY - p.geoMinY;
-		std::cout << "  ê°€ë¡œ ë²”ìœ„       : " << extentX << "\n";
-		std::cout << "  ì„¸ë¡œ ë²”ìœ„       : " << extentY << "\n";
+		std::cout << "  °¡·Î ¹üÀ§       : " << extentX << "\n";
+		std::cout << "  ¼¼·Î ¹üÀ§       : " << extentY << "\n";
 
-		// ë¯¸í„° ë‹¨ìœ„ì¸ ê²½ìš° ë©´ì  í‘œì‹œ
+		// ¹ÌÅÍ ´ÜÀ§ÀÎ °æ¿ì ¸éÀû Ç¥½Ã
 		if ((p.units.find("metre") != std::string::npos) || (p.units.find("meter") != std::string::npos) || (p.units.find("Meter") != std::string::npos))
 		{
 			double areaSqKm = (extentX * extentY) / 1e6;
-			std::cout << "  ì˜ì—­ ë©´ì        : " << std::setprecision(3) << areaSqKm << " kmÂ²\n";
+			std::cout << "  ¿µ¿ª ¸éÀû       : " << std::setprecision(3) << areaSqKm << " km©÷\n";
 		}
 
-		// 6. í•´ìƒë„ (GSD ì¶”ì •)
-		std::cout << "â•Ÿâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â•¢\n";
-		std::cout << "â•‘ [ê³µê°„ í•´ìƒë„]                                â•‘\n";
-		std::cout << "â•Ÿâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â•¢\n";
+		// 6. ÇØ»óµµ (GSD ÃßÁ¤)
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
+		std::cout << "| [°ø°£ ÇØ»óµµ]                                |\n";
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
 
 		double absPixW = std::abs(p.pixelW);
 		double absPixH = std::abs(p.pixelH);
-		std::cout << "  GSD (Xë°©í–¥)     : " << absPixW << "\n";
-		std::cout << "  GSD (Yë°©í–¥)     : " << absPixH << "\n";
+		std::cout << "  GSD (X¹æÇâ)     : " << absPixW << "\n";
+		std::cout << "  GSD (Y¹æÇâ)     : " << absPixH << "\n";
 
 		if ((p.units.find("metre") != std::string::npos) || (p.units.find("meter") != std::string::npos))
 		{
-			std::cout << "  â†’ ì•½ " << std::setprecision(1) << (absPixW * 100.0) << " cm/pixel\n";
+			std::cout << "  ¡æ ¾à " << std::setprecision(1) << (absPixW * 100.0) << " cm/pixel\n";
 		}
 		else if (p.units.find("degree") != std::string::npos)
 		{
-			// ë„ ë‹¨ìœ„ì¸ ê²½ìš° ëŒ€ëµì  m ë³€í™˜ (ì¤‘ìœ„ë„ ê¸°ì¤€)
+			// µµ ´ÜÀ§ÀÎ °æ¿ì ´ë·«Àû m º¯È¯ (ÁßÀ§µµ ±âÁØ)
 			double midLat = (p.geoMinY + p.geoMaxY) / 2.0;
 			double mPerDegX = 111320.0 * std::cos(midLat * M_PI / 180.0);
 			double mPerDegY = 110540.0;
-			std::cout << "  â†’ ì•½ " << std::setprecision(2) << (absPixW * mPerDegX) << " m/pixel (X, ìœ„ë„ " << std::setprecision(1) << midLat << "Â° ê¸°ì¤€)\n";
-			std::cout << "  â†’ ì•½ " << std::setprecision(2) << (absPixH * mPerDegY) << " m/pixel (Y)\n";
+			std::cout << "  ¡æ ¾à " << std::setprecision(2) << (absPixW * mPerDegX) << " m/pixel (X, À§µµ " << std::setprecision(1) << midLat << "¡Æ ±âÁØ)\n";
+			std::cout << "  ¡æ ¾à " << std::setprecision(2) << (absPixH * mPerDegY) << " m/pixel (Y)\n";
 		}
 
-		// 7. ì í•©ì„± íŒë‹¨
-		std::cout << "â•Ÿâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â•¢\n";
-		std::cout << "â•‘ [ìˆ˜ì¢… íŒë³„ ì í•©ì„± ê²€í† ]                      â•‘\n";
-		std::cout << "â•Ÿâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â•¢\n";
-		
+		// 7. ÀûÇÕ¼º ÆÇ´Ü
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
+		std::cout << "| [¼öÁ¾ ÆÇº° ÀûÇÕ¼º °ËÅä]                      |\n";
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
+
 		checkSuitability(p);
 
-		std::cout << "â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•\n";
+		std::cout << "------------------------------------------------------------------------------------------------------\n";
 	}
 
 private:
@@ -297,7 +297,7 @@ private:
 			return;
 		}
 
-		// ì¢Œí‘œê³„
+		// ÁÂÇ¥°è
 		OGRSpatialReference srs;
 
 		if (srs.importFromWkt(photo.projection.c_str()) != OGRERR_NONE)
@@ -305,7 +305,7 @@ private:
 			return;
 		}
 
-		// EPSG ì½”ë“œ
+		// EPSG ÄÚµå
 		const char* auth = srs.GetAuthorityCode(nullptr);
 
 		if (auth)
@@ -313,7 +313,7 @@ private:
 			photo.epsg = std::atoi(auth);
 		}
 
-		// íˆ¬ì˜ ì´ë¦„
+		// Åõ¿µ ÀÌ¸§
 		const char* projName = srs.GetAuthorityCode("PROJCS");
 
 		if (projName)
@@ -330,7 +330,7 @@ private:
 			}
 		}
 
-		// ë°ì´í…€
+		// µ¥ÀÌÅÒ
 		const char* datumStr = srs.GetAttrValue("DATUM");
 
 		if (datumStr)
@@ -338,7 +338,7 @@ private:
 			photo.datum = datumStr;
 		}
 
-		// ì¢Œí‘œ ë‹¨ìœ„
+		// ÁÂÇ¥ ´ÜÀ§
 		char* unitName = nullptr;
 
 		if (srs.IsProjected())
@@ -356,7 +356,7 @@ private:
 		}
 	}
 
-	// ì´ë¯¸ì§€ ë°ì´í„° ì½ê¸° â†’ OpenCV BGR Mat
+	// ÀÌ¹ÌÁö µ¥ÀÌÅÍ ÀĞ±â ¡æ OpenCV BGR Mat
 	static cv::Mat readImageData(GDALDataset* pDS, const AerialPhoto& photo)
 	{
 		int W = photo.width;
@@ -393,7 +393,7 @@ private:
 														// Actually: GDAL band1=R -> OpenCV channel2(R)
 														//           GDAL band2=G -> OpenCV channel1(G)
 														//           GDAL band3=B -> OpenCV channel0(B)
-														// ë°´ë“œê°€ 3ê°œ ì´ìƒì´ë©´ BGRë¡œ, ì•„ë‹ˆë©´ ê·¸ë ˆì´ìŠ¤ì¼€ì¼ë¡œ
+														// ¹êµå°¡ 3°³ ÀÌ»óÀÌ¸é BGR·Î, ¾Æ´Ï¸é ±×·¹ÀÌ½ºÄÉÀÏ·Î
 		// So we read bands [1,2,3] into pixel-interleaved BGR using bandMap
 
 		if (bandsToRead >= 3)
@@ -457,7 +457,7 @@ private:
 		}
 		else
 		{
-			// 4ë°´ë“œ (RGBN ë“±) â†’ RGBë§Œ ì‚¬ìš©
+			// 4¹êµå (RGBN µî) ¡æ RGB¸¸ »ç¿ë
 
 			cv::Mat bgr(H, W, CV_8UC3);
 			std::vector<uint8_t> buf(W * H);
@@ -478,7 +478,7 @@ private:
 				}
 			}
 
-			std::cout << " >" << bandCount << "ë°´ë“œ ì¤‘ RGB(1~3)ë§Œ ë¡œë”©\n";
+			std::cout << " >" << bandCount << "¹êµå Áß RGB(1~3)¸¸ ·Îµù\n";
 		}
 
 		if (bandCount > 3)
@@ -489,53 +489,53 @@ private:
 		return bgr;
 	}
 
-	// ìˆ˜ì¢… íŒë³„ ì í•©ì„± ê²€í† 
+	// ¼öÁ¾ ÆÇº° ÀûÇÕ¼º °ËÅä
 	static void checkSuitability(const AerialPhoto& p)
 	{
 		bool allGood = true;
 
-		// ì¢Œí‘œê³„ í™•ì¸
+		// ÁÂÇ¥°è È®ÀÎ
 		if (p.epsg == 0)
 		{
-			std::cout << "  > ì¢Œí‘œê³„(EPSG)ë¥¼ ì‹ë³„í•  ìˆ˜ ì—†ìŠµë‹ˆë‹¤.\n"
-				<< "    > LiDAR/ì„ìƒë„ì™€ ì¢Œí‘œê³„ ì¼ì¹˜ ì—¬ë¶€ë¥¼ ìˆ˜ë™ í™•ì¸í•˜ì„¸ìš”.\n";
+			std::cout << "  > ÁÂÇ¥°è(EPSG)¸¦ ½Äº°ÇÒ ¼ö ¾ø½À´Ï´Ù.\n"
+				<< "    > LiDAR/ÀÓ»óµµ¿Í ÁÂÇ¥°è ÀÏÄ¡ ¿©ºÎ¸¦ ¼öµ¿ È®ÀÎÇÏ¼¼¿ä.\n";
 
 			allGood = false;
 		}
 		else if ((p.epsg == 5179) || (p.epsg == 5186) || (p.epsg == 5174))
 		{
-			std::cout << "  > ì¢Œí‘œê³„ EPSG:" << p.epsg << " > í•œêµ­ ê³µê°„ì •ë³´ í‘œì¤€ ì¢Œí‘œê³„ì…ë‹ˆë‹¤.\n";
+			std::cout << "  > ÁÂÇ¥°è EPSG:" << p.epsg << " > ÇÑ±¹ °ø°£Á¤º¸ Ç¥ÁØ ÁÂÇ¥°èÀÔ´Ï´Ù.\n";
 		}
 		else if (p.epsg == 4326)
 		{
-			std::cout << "  > WGS84 ê²½ìœ„ë„(EPSG:4326)ì…ë‹ˆë‹¤.\n"
-				<< "    > í•œêµ­ íˆ¬ì˜ì¢Œí‘œê³„(5179/5186)ë¡œ ë³€í™˜ì´ í•„ìš”í•  ìˆ˜ ìˆìŠµë‹ˆë‹¤.\n";
+			std::cout << "  > WGS84 °æÀ§µµ(EPSG:4326)ÀÔ´Ï´Ù.\n"
+				<< "    > ÇÑ±¹ Åõ¿µÁÂÇ¥°è(5179/5186)·Î º¯È¯ÀÌ ÇÊ¿äÇÒ ¼ö ÀÖ½À´Ï´Ù.\n";
 			
 			allGood = false;
 		}
 		else
 		{
-			std::cout << "  > EPSG:" << p.epsg << " > LiDAR/ì„ìƒë„ì™€ ì¢Œí‘œê³„ ì¼ì¹˜ ì—¬ë¶€ë¥¼ í™•ì¸í•˜ì„¸ìš”.\n";
+			std::cout << "  > EPSG:" << p.epsg << " > LiDAR/ÀÓ»óµµ¿Í ÁÂÇ¥°è ÀÏÄ¡ ¿©ºÎ¸¦ È®ÀÎÇÏ¼¼¿ä.\n";
 		}
 
-		// ë°´ë“œ ìˆ˜ í™•ì¸
+		// ¹êµå ¼ö È®ÀÎ
 		if (p.bands >= 3)
 		{
-			std::cout << "  > RGB ë°´ë“œ í™•ë³´ > ìƒ‰ìƒ íŠ¹ì§• ì¶”ì¶œ ê°€ëŠ¥\n";
+			std::cout << "  > RGB ¹êµå È®º¸ > »ö»ó Æ¯Â¡ ÃßÃâ °¡´É\n";
 		}
 		else
 		{
-			std::cout << "  > ë°´ë“œ ìˆ˜ " << p.bands << "ê°œ > RGB ìƒ‰ìƒ íŠ¹ì§• ì¶”ì¶œì´ ì œí•œë©ë‹ˆë‹¤.\n";
+			std::cout << "  > ¹êµå ¼ö " << p.bands << "°³ > RGB »ö»ó Æ¯Â¡ ÃßÃâÀÌ Á¦ÇÑµË´Ï´Ù.\n";
 
 			allGood = false;
 		}
 
 		if (p.bands >= 4)
 		{
-			std::cout << "  > 4ë°´ë“œ ì´ìƒ > NIR(ê·¼ì ì™¸ì„ ) í™œìš© ê°€ëŠ¥ì„± ìˆìŒ\n";
+			std::cout << "  > 4¹êµå ÀÌ»ó > NIR(±ÙÀû¿Ü¼±) È°¿ë °¡´É¼º ÀÖÀ½\n";
 		}
 
-		// í•´ìƒë„ í™•ì¸
+		// ÇØ»óµµ È®ÀÎ
 		double gsd = std::abs(p.pixelW);
 		
 		if (p.units.find("degree") != std::string::npos)
@@ -546,37 +546,37 @@ private:
 		
 		if (gsd <= 0.25)
 		{
-			std::cout << "  > ê³ í•´ìƒë„ (<=25cm) > ê°œë³„ ìˆ˜ê´€ ì‹ë³„ì— ìš°ìˆ˜\n";
+			std::cout << "  > °íÇØ»óµµ (<=25cm) > °³º° ¼ö°ü ½Äº°¿¡ ¿ì¼ö\n";
 		}
 		else if (gsd <= 0.5)
 		{
-			std::cout << "  > í•´ìƒë„ ì í•© (<=50cm) > ìˆ˜ê´€ ì‹ë³„ ê°€ëŠ¥\n";
+			std::cout << "  > ÇØ»óµµ ÀûÇÕ (<=50cm) > ¼ö°ü ½Äº° °¡´É\n";
 		}
 		else if (gsd <= 1.0)
 		{
-			std::cout << "  > í•´ìƒë„ ë³´í†µ (<=1m)  í° ìˆ˜ê´€ë§Œ ì‹ë³„ ê°€ëŠ¥\n";
+			std::cout << "  > ÇØ»óµµ º¸Åë (<=1m)  Å« ¼ö°ü¸¸ ½Äº° °¡´É\n";
 		}
 		else
 		{
-			std::cout << "  > í•´ìƒë„ ë¶€ì¡± (>" << gsd << "m) > ê°œë³„ ë‚˜ë¬´ ìˆ˜ê´€ ì‹ë³„ ì–´ë ¤ì›€\n";
+			std::cout << "  > ÇØ»óµµ ºÎÁ· (>" << gsd << "m) > °³º° ³ª¹« ¼ö°ü ½Äº° ¾î·Á¿ò\n";
 
 			allGood = false;
 		}
 
-		// íšŒì „ í™•ì¸
+		// È¸Àü È®ÀÎ
 		if ((std::abs(p.rotationX) > 1e-6) || (std::abs(p.rotationY) > 1e-6))
 		{
-			std::cout << "  > ì´ë¯¸ì§€ì— íšŒì „ì´ ì ìš©ë˜ì–´ ìˆìŠµë‹ˆë‹¤.\n"
-				<< "    > ì¢Œí‘œ ë³€í™˜ ì‹œ íšŒì „ íŒŒë¼ë¯¸í„°ë¥¼ ë°˜ì˜í•´ì•¼ í•©ë‹ˆë‹¤.\n";
+			std::cout << "  > ÀÌ¹ÌÁö¿¡ È¸ÀüÀÌ Àû¿ëµÇ¾î ÀÖ½À´Ï´Ù.\n"
+				<< "    > ÁÂÇ¥ º¯È¯ ½Ã È¸Àü ÆÄ¶ó¹ÌÅÍ¸¦ ¹İ¿µÇØ¾ß ÇÕ´Ï´Ù.\n";
 		}
 
 		if (allGood)
 		{
-			std::cout << "\n  > ì¢…í•©: ìˆ˜ì¢… íŒë³„ í”„ë¡œì íŠ¸ì— ì í•©í•œ í•­ê³µì‚¬ì§„ì…ë‹ˆë‹¤.\n";
+			std::cout << "\n  > Á¾ÇÕ: ¼öÁ¾ ÆÇº° ÇÁ·ÎÁ§Æ®¿¡ ÀûÇÕÇÑ Ç×°ø»çÁøÀÔ´Ï´Ù.\n";
 		}
 		else
 		{
-			std::cout << "\n  > ì¢…í•©: ìœ„ ì£¼ì˜ì‚¬í•­ì„ í™•ì¸/ë³´ì™„í•œ í›„ ì‚¬ìš©í•˜ì„¸ìš”.\n";
+			std::cout << "\n  > Á¾ÇÕ: À§ ÁÖÀÇ»çÇ×À» È®ÀÎ/º¸¿ÏÇÑ ÈÄ »ç¿ëÇÏ¼¼¿ä.\n";
 		}
 	}
 };
