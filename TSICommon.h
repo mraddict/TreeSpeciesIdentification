@@ -311,6 +311,21 @@ public:
 		return std::string::npos;
 	}
 
+	// csv
+	static std::vector<std::string> split(const std::string& line)
+	{
+		std::vector<std::string> cols;
+		std::stringstream ss(line);
+		std::string cell;
+
+		while (std::getline(ss, cell, ','))
+		{
+			cols.push_back(cell);
+		}
+
+		return cols;
+	}
+
 	// json
 
 	// Extract a string value: "key": "value"

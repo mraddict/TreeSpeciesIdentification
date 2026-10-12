@@ -42,8 +42,66 @@
 //        $(gdal-config --cflags --libs) \
 //        $(pkg-config --cflags --libs opencv4)
 // ─────────────────────────────────────────────────────────
+//  Feature mode (FeatureExtractor::configure):
+//    Handcrafted : 17 color/texture + 8 LiDAR            = 25-dim   (legacy)
+//    Dino        : DINOv2 embedding(D) + 8 LiDAR          = D+8
+//    DinoPlusHandcrafted : DINOv2(D) + 17 + 8 LiDAR       = D+25
+//
+//  Handcrafted (17):
+//    B/G/R mean, B/G/R std, H/S/V mean, Contrast, Entropy,
+//    LBP mean/std, GLCM energy/corr/homo/dissim
+//  LiDAR (8, always last):
+//    Height, CrownD, H_CrownD, CrownAsym, CrownCompact,
+//    CrownDensity, CrownSpher, AreaPerH
+//
+//  Feature CSV is self-describing: loadCSV() reads names from header,
+//  so a CSV written in any mode loads back correctly.
+//
+//  Dependencies:
+//    - TreeLabeler.h (LabeledTree)
+//    - DinoEmbedder.h (ONNX Runtime)  — only used when mode != Handcrafted
+//    - OpenCV
+// ─────────────────────────────────────────────────────────
 
 #include "TreeLabeler.h"
+#include "DinoEmbedder.h"
+
+// ─────────────────────────────────────────────
+//  Feature mode / configuration
+// ─────────────────────────────────────────────
+
+enum class FeatureMode
+{
+	Handcrafted,						// legacy 25-dim
+	Dino,									// DINOv2 + LiDAR
+	DinoPlusHandcrafted,			// DINOv2 + handcrafted + LiDAR
+};
+
+struct FeatureConfig
+{
+	FeatureMode mode = FeatureMode::Handcrafted;
+	DinoEmbedderOptions dino;										// used when mode != Handcrafted
+
+	static const char* modeName(FeatureMode m)
+	{
+		switch (m)
+		{
+			case FeatureMode::Handcrafted:
+
+				return "Handcrafted";
+
+			case FeatureMode::Dino:
+				
+				return "Dino";
+
+			case FeatureMode::DinoPlusHandcrafted:
+
+				return "DinoPlusHandcrafted";
+		}
+
+		return "Unknown";
+	}
+};
 
 // ─────────────────────────────────────────────
 //  Feature vector for a single tree
@@ -61,8 +119,38 @@ struct TreeFeature
 	std::string imagePath;					// saved crop image path
 	std::vector<float> feature;			// feature vector
 
-	// Feature names (static, for CSV header)
+	static const int kLidarCount = 0;
+
+	// Feature names for the ACTIVE layout (set by FeatureExtractor::configure / loadCSV)
 	static const std::vector<std::string>& featureNames()
+	{
+		return namesRef();
+	}
+
+	// Index of the first LiDAR feature (always the last 8)
+	static int lidarStart()
+	{
+		return (int)namesRef().size() - kLidarCount;
+	}
+
+	// Index of a feature by name, -1 if absent in the active layout
+	static int indexOf(const std::string& name)
+	{
+		auto& n = namesRef();
+
+		for (int i = 0 ; i < (int)n.size() ; ++i)
+		{
+			if (n[i] == name)
+			{
+				return i;
+			}
+		}
+
+		return -1;
+	}
+
+	// Feature names (static, for CSV header)
+	static const std::vector<std::string>& handcraftedNames()
 	{
 		static std::vector<std::string> names =
 		{
@@ -72,9 +160,50 @@ struct TreeFeature
 			"Contrast", "Entropy",
 			"LBP_mean", "LBP_std",
 			"GLCM_energy", "GLCM_corr", "GLCM_homo", "GLCM_dissim",
+		};
+
+		return names;
+	}
+
+	static const std::vector<std::string>& lidarNames()
+	{
+		static std::vector<std::string> names =
+		{
 			"Height", "CrownD", "H_CrownD",
 			"CrownAsym", "CrownCompact", "CrownDensity", "CrownSpher", "AreaPerH"
 		};
+
+		return names;
+	}
+
+	// Mutable storage for the active layout (default: legacy 25)
+	static std::vector<std::string>& namesRef()
+	{
+		static std::vector<std::string> names = buildNames(FeatureMode::Handcrafted, 0);
+
+		return names;
+	}
+
+	static std::vector<std::string> buildNames(FeatureMode mode, int dinoDim)
+	{
+		std::vector<std::string>names;
+
+		if (mode != FeatureMode::Handcrafted)
+		{
+			for (int i = 0 ; i < dinoDim ; ++i)
+			{
+				names.push_back("dino_" + std::to_string(i));
+			}
+		}
+
+		if (mode != FeatureMode::Dino)
+		{
+			auto& h = handcraftedNames();
+			names.insert(names.end(), h.begin(), h.end());
+		}
+
+		auto& l = lidarNames();
+		names.insert(names.end(), l.begin(), l.end());
 
 		return names;
 	}
@@ -98,6 +227,32 @@ class FeatureExtractor
 {
 public:
 
+	// ─── Select feature mode (call once before extraction) ───
+	//  Handcrafted (default): no ONNX model is loaded.
+	//  Dino / DinoPlusHandcrafted: loads the ONNX model now; throws on failure.
+	static void configure(const FeatureConfig& cfg)
+	{
+		config() = cfg;
+		embedder().reset();
+
+		int dinoDim = 0;
+
+		if (cfg.mode != FeatureMode::Handcrafted)
+		{
+			embedder() = std::make_unique<DinoEmbedder>(cfg.dino);
+			dinoDim = embedder()->dim();
+		}
+
+		TreeFeature::namesRef() = TreeFeature::buildNames(cfg.mode, dinoDim);
+
+		std::cout << "=== Feature mode: " << FeatureConfig::modeName(cfg.mode) << " (" << TreeFeature::featureNames().size() << "-dim) ===\n";
+	}
+
+	static FeatureMode mode()
+	{
+		return config().mode;
+	}
+
 	// ─── Extract from saved crop images (reads from disk) ───
 	static ExtractionResult extractFromFiles(const std::vector<LabeledTree>& labeledTrees)
 	{
@@ -105,6 +260,8 @@ public:
 
 		ExtractionResult result;
 		result.all.reserve(labeledTrees.size());
+
+		Batch batch;
 
 		int total = (int)labeledTrees.size();
 		int progressStep = std::max(1, total / 20);
@@ -146,25 +303,15 @@ public:
 			}
 
 			// Extract features
-			TreeFeature tf;
-
-			tf.treeId = lt.tp.treeId;
-			tf.speciesCode = lt.speciesCode;
-			tf.speciesName = lt.speciesName;
-			tf.insideForest = lt.insideForest;
-			tf.reliable = lt.reliable;
-			tf.imageUsable = lt.imageUsable;
-			tf.distToEdge = lt.distToEdge;
-			tf.imagePath = lt.imagePath;
-			tf.feature = computeFeature(crop, lt.tp);
-
-			result.all.push_back(std::move(tf));
+			enqueue(batch, crop, lt, result);
 
 			if (((i + 1) % progressStep == 0) || (i == total - 1))
 			{
 				std::cout << "  " << (i + 1) << "/" << total << " (" << (100 * (i + 1) / total) << "%)\r" << std::flush;
 			}
 		}
+
+		flush(batch, result);
 
 		std::cout << "\n";
 
@@ -186,6 +333,8 @@ public:
 
 		ExtractionResult result;
 		result.all.reserve(total);
+
+		Batch batch;
 
 		for (int i = 0 ; i < total ; ++i)
 		{
@@ -219,24 +368,15 @@ public:
 			cv::Mat crop = aerialImg.image(roi);
 
 			// Extract features
-			TreeFeature tf;
-			tf.treeId = lt.tp.treeId;
-			tf.speciesCode = lt.speciesCode;
-			tf.speciesName = lt.speciesName;
-			tf.insideForest = lt.insideForest;
-			tf.reliable = lt.reliable;
-			tf.imageUsable = lt.imageUsable;
-			tf.distToEdge = lt.distToEdge;
-			tf.imagePath = lt.imagePath;
-			tf.feature = computeFeature(crop, lt.tp);
-
-			result.all.push_back(std::move(tf));
+			enqueue(batch, crop, lt, result);
 
 			if (((i + 1) % progressStep == 0) || (i == total - 1))
 			{
 				std::cout << "  " << (i + 1) << "/" << total << " (" << (100 * (i + 1) / total) << "%)\r" << std::flush;
 			}
 		}
+
+		flush(batch, result);
 
 		std::cout << "\n";
 
@@ -270,13 +410,31 @@ public:
 			throw std::runtime_error("Feature CSV is empty");
 		}
 
+		if (!line.empty() && line.back() == '\r')
+		{
+			line.pop_back();
+		}
+
 		// Parse header to find feature column start index
-		// Format: TreeID,InsideForest,Reliable,DistToEdge,ImagePath,SpeciesCode,SpeciesName,B_mean,...
+		// Format: TreeID,InsideForest,Reliable,DistToEdge,ImagePath,SpeciesCode,SpeciesName,<feature names...>
 
 		int metaCols = 7;		// columns before feature values
 
-		auto& featNames = TreeFeature::featureNames();
+		std::vector<std::string> headerCols = TSICommon::split(line);
+
+		if ((int)headerCols.size() <= metaCols)
+		{
+			throw std::runtime_error("Feature CSV header has no feature columns");
+		}
+
+		//auto& featNames = TreeFeature::featureNames();
+		std::vector<std::string> featNames(headerCols.begin() + metaCols, headerCols.end());
 		int nFeats = (int)featNames.size();
+
+		// Adopt the CSV's layout as the active one
+		TreeFeature::namesRef() = featNames;
+
+		std::cout << "  Features: " << nFeats << " (from header)\n";
 
 		int rowCount = 0;
 
@@ -293,6 +451,9 @@ public:
 				line.pop_back();
 			}
 
+			std::vector<std::string> cols = TSICommon::split(line);
+
+/*
 			// Split by comma
 			std::vector<std::string> cols;
 			std::stringstream ss(line);
@@ -302,6 +463,7 @@ public:
 			{
 				cols.push_back(cell);
 			}
+*/
 
 			if ((int)cols.size() < metaCols + nFeats)
 			{
@@ -372,6 +534,7 @@ public:
 
 		// Header
 		auto& names = TreeFeature::featureNames();
+		const int lidarStart = TreeFeature::lidarStart();
 
 		out << "TreeID,InsideForest,Reliable,DistToEdge,ImagePath,SpeciesCode,SpeciesName";
 
@@ -398,14 +561,15 @@ public:
 
 			for (size_t i = 0 ; i < tf.feature.size() ; ++i)
 			{
-				// LiDAR features (17~) with 2 decimals, others with 4
-				if (i >= 17)
+				// LiDAR features (last 8) with 2 decimals; image features with 5
+				// (L2-normalized embeddings are small-magnitude, so 4 is too coarse)
+				if ((int)i >= lidarStart)
 				{
 					out << "," << std::setprecision(2) << tf.feature[i];
 				}
 				else
 				{
-					out << "," << std::setprecision(4) << tf.feature[i];
+					out << "," << std::setprecision(5) << tf.feature[i];
 				}
 			}
 
@@ -414,7 +578,7 @@ public:
 
 		out.close();
 
-		std::cout << "  Feature CSV saved: " << outPath << " (" << result.all.size() << " rows)\n";
+		std::cout << "  Feature CSV saved: " << outPath << " (" << result.all.size() << " rows, " << names.size() << " features)\n";
 	}
 
 	// ─── Print feature importance summary ───
@@ -432,8 +596,23 @@ public:
 		std::cout << "  " << std::left << std::setw(12) << "Feature" << std::right << std::setw(10) << "Mean" << std::setw(10) << "Std" << std::setw(10) << "Min" << std::setw(10) << "Max" << "\n";
 		std::cout << "  " << std::string(52, '-') << "\n";
 
+		int showDino = 0;
+
 		for (int fi = 0; fi < nFeat; ++fi)
 		{
+			// Show at most 3 embedding dims as a sanity check, then skip the rest
+			bool isDino = (names[fi].rfind("dino_", 0) == 0);
+
+			if (isDino)
+			{
+				if (showDino >= 3)
+				{
+					continue;
+				}
+
+				++showDino;
+			}
+
 			double sum = 0, sqSum = 0;
 			double minV = 1e30, maxV = -1e30;
 			int n = 0;
@@ -467,9 +646,35 @@ public:
 			}
 		}
 
+		if (showDino)
+		{
+			std::cout << "  (remaining dino_* dims omitted)\n";
+		}
+
 		// Per-species mean for key features
 		if (result.train.size() > 10)
 		{
+			// Print G_mean, H_mean, S_mean, Height, CrownD per species
+			//int keyFeats[] = { 1, 6, 7, 17, 18 };  // G_mean, H_mean, S_mean, Height, CrownD
+			std::vector<int> keyFeats;
+
+			for (const char* key : { "G_mean", "H_mean", "S_mean", "Height", "CrownD" })
+			{
+				int idx = TreeFeature::indexOf(key);
+
+				if (idx >= 0)
+				{
+					keyFeats.push_back(idx);
+				}
+			}
+
+			if (keyFeats.empty())
+			{
+				std::cout << std::setprecision(6);
+
+				return;
+			}
+
 			std::cout << "\n  [Per-species mean (top features)]\n";
 		
 			std::map<std::string, std::vector<double>> specSums;
@@ -487,8 +692,6 @@ public:
 				specCounts[tf->speciesCode]++;
 			}
 
-			// Print G_mean, H_mean, S_mean, Height, CrownD per species
-			int keyFeats[] = { 1, 6, 7, 17, 18 };  // G_mean, H_mean, S_mean, Height, CrownD
 			std::cout << "  " << std::left << std::setw(12) << "Species" << std::setw(6) << "N";
 
 			for (int ki : keyFeats)
@@ -497,7 +700,7 @@ public:
 			}
 
 			std::cout << "\n";
-			std::cout << "  " << std::string(58, '-') << "\n";
+			std::cout << "  " << std::string(18 + 10 * keyFeats.size(), '-') << "\n";
 
 			// Sort by count
 			std::vector<std::pair<std::string, int>> sorted(specCounts.begin(), specCounts.end());
@@ -522,12 +725,149 @@ public:
 
 private:
 
+	static FeatureConfig& config()
+	{
+		static FeatureConfig cfg;
+
+		return cfg;
+	}
+
+	static std::unique_ptr<DinoEmbedder>& embedder()
+	{
+		static std::unique_ptr<DinoEmbedder> e;
+
+		return e;
+	}
+
+	// ─── Batching ───
+	//  Handcrafted mode: batch size 1 (features computed immediately).
+	//  Dino modes: crops are buffered and sent to ONNX Runtime in chunks,
+	//  so only batchSize crops are resident at a time (not all 230k).
+
+	struct Pending
+	{
+		cv::Mat crop;		// owned copy (safe for both file and ROI sources)
+		TreePoint tp;
+		TreeFeature tf;		// meta filled, feature empty until flush
+	};
+
+	struct Batch
+	{
+		std::vector<Pending> items;
+	};
+
+	static void enqueue(Batch& batch, const cv::Mat& crop, const LabeledTree& lt, ExtractionResult& result)
+	{
+		Pending p;
+		
+		p.crop = crop.clone();
+		p.tp = lt.tp;
+
+		p.tf.treeId = lt.tp.treeId;
+		p.tf.speciesCode = lt.speciesCode;
+		p.tf.speciesName = lt.speciesName;
+		p.tf.insideForest = lt.insideForest;
+		p.tf.reliable = lt.reliable;
+		p.tf.imageUsable = lt.imageUsable;
+		p.tf.distToEdge = lt.distToEdge;
+		p.tf.imagePath = lt.imagePath;
+
+		batch.items.push_back(std::move(p));
+
+		int limit = (mode() == FeatureMode::Handcrafted) ? 1 : (embedder() ? embedder()->batchSize() : 1);
+
+		if ((int)batch.items.size() >= limit)
+		{
+			flush(batch, result);
+		}
+	}
+
+	static void flush(Batch& batch, ExtractionResult& result)
+	{
+		if (batch.items.empty())
+		{
+			return;
+		}
+
+		std::vector<std::vector<float>> dino;
+
+		if (mode() != FeatureMode::Handcrafted)
+		{
+			if (!embedder())
+			{
+				throw std::runtime_error("FeatureExtractor: Dino mode selected but embedder not initialized (call configure)");
+			}
+
+			std::vector<cv::Mat> crops;
+			crops.reserve(batch.items.size());
+
+			for (auto& p : batch.items)
+			{
+				crops.push_back(p.crop);
+			}
+
+			dino = embedder()->embedBatch(crops);
+		}
+
+		for (size_t i = 0 ; i < batch.items.size() ; ++i)
+		{
+			auto& p = batch.items[i];
+
+			p.tf.feature = composeFeature(p.crop, p.tp, dino.empty() ? nullptr : &dino[i]);
+			result.all.push_back(std::move(p.tf));
+		}
+
+		batch.items.clear();
+	}
+
+	// ─── Feature composition by mode ───
+	//  [dino (D)] + [handcrafted (17)] + [lidar (8)]
+	static std::vector<float> composeFeature(const cv::Mat& crop, const TreePoint& tp, const std::vector<float>* dino)
+	{
+		std::vector<float> f;
+		f.reserve(TreeFeature::featureNames().size());
+
+		FeatureMode m = mode();
+
+		if ((m != FeatureMode::Handcrafted) && dino)
+		{
+			f.insert(f.end(), dino->begin(), dino->end());
+		}
+
+		if (m != FeatureMode::Dino)
+		{
+			std::vector<float> h = computeHandcrafted(crop);
+			f.insert(f.end(), h.begin(), h.end());
+		}
+
+		std::vector<float> l = computeLidar(tp);
+		f.insert(f.end(), l.begin(), l.end());
+
+		return f;
+	}
+
 	// ─── Feature computation (25 dimensions) ───
 
 	static std::vector<float> computeFeature(const cv::Mat& crop, const TreePoint& tp)
 	{
+		return composeFeature(crop, tp, nullptr);
+	}
+
+	static std::vector<float> computeHandcrafted(const cv::Mat& cropIn)
+	{
+		cv::Mat crop;
+
+		if (cropIn.channels() == 4)
+		{
+			cv::cvtColor(cropIn, crop, cv::COLOR_BGRA2BGR);
+		}
+		else
+		{
+			crop = cropIn;
+		}
+
 		std::vector<float> f;
-		f.reserve(20);
+		f.reserve(17);
 
 		// BGR 통계
 		// [0-5] BGR mean & stddev
@@ -591,7 +931,7 @@ private:
 		cv::calcHist(&grayU8, 1, nullptr, cv::Mat(), hist, 1, &histSize, &histRange);
 
 		hist /= (float)(crop.rows * crop.cols);
-		
+
 		float entropy = 0.0f;
 
 		for (int i = 0; i < histSize; ++i)
@@ -609,7 +949,7 @@ private:
 		// [11-12] LBP (Local Binary Pattern) - mean & stddev
 
 		cv::Mat lbpImg = computeLBP(gray);
-		
+
 		cv::Scalar lbpMean;
 		cv::Scalar lbpStd;
 
@@ -630,6 +970,15 @@ private:
 		f.push_back(glcmCorr);							// GLCM_correlation
 		f.push_back(glcmHomo);							// GLCM_homogeneity
 		f.push_back(glcmDissim);						// GLCM_dissimilarity
+
+		return f;
+	}
+
+	// LiDAR structural features (8 dimensions, 촬영 조건 무관) 
+	static std::vector<float> computeLidar(const TreePoint& tp)
+	{
+		std::vector<float> f;
+		f.reserve(TreeFeature::kLidarCount);
 
 		// [17-19] LiDAR structural features
 
@@ -673,7 +1022,7 @@ private:
 		//   촬영 조건 무관: LiDAR 구조 정보
 		float crownAreaPerH = (tp.height > 0.0) ? (float)(tp.crownArea / tp.height) : 0.0f;
 		f.push_back(crownAreaPerH);
-		
+
 		return f;		// 총 25차원
 	}
 
@@ -824,11 +1173,27 @@ private:
 	}
 
 
+	// Non-species forest-map codes: 81 Unstocked, 82 Bare Land, 83 Shrub ...
+	// Trees detected inside these polygons carry no species information.
+	static bool isNonSpeciesCode(const std::string& code)
+	{
+		return !code.empty() && code[0] == '8';
+	}
+
 	// ─── Categorize into train/predict ───
 	static void categorize(ExtractionResult& result)
 	{
+		int excludedNonSpecies = 0;
+
 		for (auto& tf : result.all)
 		{
+			if (tf.insideForest && isNonSpeciesCode(tf.speciesCode))
+			{
+				++excludedNonSpecies;		// neither train nor predict
+
+				continue;
+			}
+
 			if (tf.insideForest && tf.reliable && !tf.speciesCode.empty())
 			{
 				result.train.push_back(&tf);
@@ -837,6 +1202,11 @@ private:
 			{
 				result.predict.push_back(&tf);
 			}
+		}
+
+		if (excludedNonSpecies > 0)
+		{
+			std::cout << "  Excluded (non-species codes 8x): " << excludedNonSpecies << "\n";
 		}
 	}
 

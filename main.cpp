@@ -18,6 +18,9 @@
 #include "AerialReproject.h"
 #include "AerialHistogramMatcher.h"
 
+#include "CourseCrossValidator.h"
+#include "DinoEmbedder.h"
+
 // ─── Merge features from multiple courses ───
 // normalizePhoto: true이면 항공사진 기반 특징(0~16)을 코스별 z-score 정규화
 ExtractionResult mergeFeatures_old(const std::vector<ExtractionResult>& perCourse, const std::vector<CourseDataSet>& courseDSs)
@@ -255,12 +258,35 @@ void reprojectAerialPhoto(const std::string& srcPath, const std::string& dstPath
 	AerialReproject::printReport(report);
 }
 
-int main()
+int runFeatureExperiment(int argc, char** argv);
+int runExtract(std::vector<LabeledTree>& labeled, const std::string& outDir, const std::string& onnxPath);
+int runEval(const std::string& outDir);
+
+void printUsage(const char* prog)
 {
- 	TSICommon::initialize();
-	ForestCommon::initialize();
-	
-	//reprojectAerialPhoto("../../Resources/Diamond/DiamondCC_Orthomosic_BackGround.tif", "../../Resources/Diamond/DiamondCC_orthomosaic_5179_05cm.tif");
+	std::cerr
+		<< "Usage:\n"
+		<< "  " << prog << " --config <courses.json> [options]\n"
+		<< "  " << prog << " --resume features <merged_features.csv> [options]\n\n"
+		<< "Options:\n"
+		<< "  --output <dir>          Output directory (default: results_multi)\n"
+		<< "  --edge-dist <m>         Min edge distance (default: 10)\n"
+		<< "  --trees <N>             RF tree count (default: 200)\n"
+		<< "  --max-depth <N>         RF max depth (default: 20)\n"
+		<< "  --no-self-train         Disable self-training\n"
+		<< "  --save-overlay          Save result overlay images per course\n"
+		<< "  --normalize-photo       Z-score normalize photo features (0-16) per course\n"
+		<< "  --result-csv <path>     Output CSV path\n";
+}
+
+int main(int argc, char** argv)
+{
+	if (argc < 2)
+	{
+		printUsage(argv[0]);
+
+		return 1;
+	}
 
 	OutputLogger logger("results", "log");
 
@@ -269,10 +295,99 @@ int main()
 	std::string mergedFeatureCSV = "/merged_tree_features.csv";
 	std::string modelDir = "/species_model";
 	std::string modelCSV = "/species_result.csv";
-	 
+
 	_mkdir(outputDir.c_str());
 
-	std::string courseDataSetConfigFilename = "../../Resources/courses_dataset.json";
+	bool resumeFeature = false;
+	bool experiment = false;
+
+	std::string courseDataSetConfigFilename = "../../Resources/courses_dataset_old.json";
+	int argIdx = 1;
+
+	if (std::string(argv[1]) == "--config" && argc >= 3)
+	{
+		courseDataSetConfigFilename = argv[2];
+		argIdx = 3;
+	}
+	else if (std::string(argv[1]) == "--resume" && argc >= 4 && std::string(argv[2]) == "features")
+	{
+		featureCSV = argv[3];
+		argIdx = 4;
+
+		resumeFeature = true;
+	}
+	else 	if (std::string(argv[1]) == "--experiment" && argc >= 2)
+	{
+		experiment = true;
+
+		if (std::string(argv[2]) == "eval")
+		{
+			resumeFeature = true;
+		}
+		else
+		{
+			resumeFeature = false;
+		}
+	}
+	else
+	{
+		printUsage(argv[0]);
+
+		return 1;
+	}
+
+ 	TSICommon::initialize();
+	ForestCommon::initialize();
+	
+	//reprojectAerialPhoto("../../Resources/Diamond/DiamondCC_Orthomosic_BackGround.tif", "../../Resources/Diamond/DiamondCC_orthomosaic_5179_05cm.tif");
+
+	// Options
+	HierarchicalOptions hOpts;
+	
+	bool saveOverlay = true;
+	bool normalizePhoto = true;
+
+	for (int i = argIdx; i < argc; ++i)
+	{
+		std::string arg = argv[i];
+
+		if (arg == "--output" && i + 1 < argc)
+		{
+			outputDir = argv[++i];
+		}
+		else if (arg == "--edge-dist" && i + 1 < argc)
+		{
+			hOpts.minEdgeDist = std::stod(argv[++i]);
+		}
+		else if (arg == "--trees" && i + 1 < argc)
+		{
+			hOpts.level1Opts.maxTrees = std::stoi(argv[i + 1]);
+			hOpts.level2Opts.maxTrees = std::stoi(argv[++i]);
+		}
+		else if (arg == "--max-depth" && i + 1 < argc)
+		{
+			hOpts.level1Opts.maxDepth = std::stoi(argv[i + 1]);
+			hOpts.level2Opts.maxDepth = std::stoi(argv[++i]);
+		}
+		else if (arg == "--no-self-train")
+		{
+			hOpts.selfTraining = false;
+		}
+		else if (arg == "--save-overlay")
+		{
+			saveOverlay = true;
+		}
+		else if (arg == "--normalize-photo")
+		{
+			normalizePhoto = true;
+		}
+		else if (arg == "--result-csv" && i + 1 < argc)
+		{
+			hOpts.resultCsv = argv[++i];
+		}
+	}
+
+	//hOpts.maxRemoveRatio = 0.3;	
 
 /*
 	AerialHistogramMatcher matcher;
@@ -283,24 +398,39 @@ int main()
 
 	CourseDataSetConfig courseDSConfig = CourseDataSetConfigLoader::load(courseDataSetConfigFilename);
 
-	bool resumeFeature = false;
-
-	std::vector<ExtractionResult> perCourseFeatures;
-	std::vector<std::unique_ptr<AerialPhoto>> perCourseAerial;
-	std::vector<std::unique_ptr<ForestLayer>> perCourseForeset;
-	std::vector<std::unique_ptr<TreeData>> perCourseTrees;
-
 	try
 	{
 		ExtractionResult features;
 
+		std::vector<ExtractionResult> perCourseFeatures;
+		std::vector<std::unique_ptr<AerialPhoto>> perCourseAerial;
+		std::vector<std::unique_ptr<ForestLayer>> perCourseForeset;
+		std::vector<std::unique_ptr<TreeData>> perCourseTrees;
+
 		if (resumeFeature)
 		{
 			std::cout << "  [Resuming from trained model]\n\n";
+
+			if (experiment)
+			{
+				return runEval(argv[3]);
+			}
+
 			features = FeatureExtractor::loadCSV(featureCSV);
 		}
 		else
 		{
+			// ─── Full pipeline: process each course ───
+			
+			outputDir = courseDSConfig.outputDir;
+
+			if (hOpts.resultCsv.empty())
+			{
+				hOpts.resultCsv = courseDSConfig.outputDir + "/hierarchical_result.csv";
+			}
+
+			std::vector<LabeledTree> allLabeledTree;
+
 			for (auto& course : courseDSConfig.courses)
 			{
 				std::unique_ptr<AerialPhoto> pAerialImg;
@@ -360,6 +490,11 @@ int main()
 				auto labeled = TreeLabeler::label(*pAerialImg, *pForest, *pTrees, labelOpts);
 
 				// 3. Extract features
+				if (experiment)
+				{
+					allLabeledTree.insert(allLabeledTree.end(), labeled.begin(), labeled.end());
+				}
+
 				std::cout << "\n=== Extracting features ===\n";
 				ExtractionResult courseFeatures = FeatureExtractor::extractFromFiles(labeled);
 				//features = FeatureExtractor::extractFromAerialImage(labeled, *pAerialImg);
@@ -380,6 +515,12 @@ int main()
 				perCourseTrees.push_back(std::move(pTrees));
 			}
 
+			if (experiment)
+			{
+				// TreeSpecies.exe experiment extract <입력> out\ models\dinov2_vits14.onnx
+				return runExtract(allLabeledTree, "out", "../../Resources/models/dinov2_vits14.onnx");
+			}
+
 			// Merge all features
 			std::cout << "\n========================================\n";
 			std::cout << "  Merging " << perCourseFeatures.size() << " datasets\n";
@@ -396,7 +537,6 @@ int main()
 				}
 			}
 
-			bool normalizePhoto = true;
 			features = mergeFeatures(perCourseFeatures, normalizePhoto);
 
 			std::cout << "  Total trees: " << features.all.size() << "\n";
@@ -427,11 +567,7 @@ int main()
 
 		auto classifier = RefinedClassifier::run(features, refOpts);
 */
-		HierarchicalOptions hOpts;
-		hOpts.selfTraining = false;
-		//hOpts.maxRemoveRatio = 0.3;
-		hOpts.resultCsv = courseDSConfig.outputDir + "/hierarchical_result.csv";
-
+		
 		// Train hierarchical classifier
 		HierarchicalClassifier hClf;
 		hClf.train(features, hOpts);
@@ -444,9 +580,6 @@ int main()
 
 		// Save
 		HierarchicalClassifier::saveResults(results, hOpts.resultCsv);
-
-		// Render overlay if requested
-		bool saveOverlay = true;
 		
 		// ─── Per-course overlay ───
 		if (saveOverlay && !perCourseAerial.empty())
