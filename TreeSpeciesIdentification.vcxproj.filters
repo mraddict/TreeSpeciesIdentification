@@ -83,8 +83,13 @@
     <ClInclude Include="DinoEmbedder.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="SpeciesCodes.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <None Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x64\native\onnxruntime.dll" />
+    <None Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x64\native\onnxruntime_providers_shared.dll" />
   </ItemGroup>
 </Project>

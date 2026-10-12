@@ -41,6 +41,7 @@
     <ClInclude Include="RefinedClassifier.h" />
     <ClInclude Include="ResultOverlayRenderer.h" />
     <ClInclude Include="SpeciesClassifier.h" />
+    <ClInclude Include="SpeciesCodes.h" />
     <ClInclude Include="TreeLabeler.h" />
     <ClInclude Include="TreeLoader.h" />
     <ClInclude Include="TSICommon.h" />

@@ -1,6 +1,6 @@
-ï»¿#pragma once
+#pragma once
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ----------------------------------------------------------------------------------------------------------------------------
 //  FeatureExtractor.h
 //  Crown image feature extraction for species classification
 //
@@ -28,11 +28,11 @@
 //    [17] Height       - Tree height (m, from LiDAR)
 //    [18] CrownD       - Crown diameter (m, from LiDAR)
 //    [19] H_CrownD     - Height / CrownD ratio
-//    [20] ìˆ˜ê´€ ë¹„ëŒ€ì¹­ë„ â€” ë‚¨ë¶/ë™ì„œ ì§ê²½ ë¹„ìœ¨
-//    [21] ìˆ˜ê´€ ì¶©ì‹¤ë„ â€” ì‹¤ì œ ë©´ì  / ì›í˜• ê°€ì • ë©´ì 
-//    [22] ìˆ˜ê´€ ë°€ë„ â€” ì²´ì  / ë©´ì 
-//    [23] ìˆ˜ê´€ êµ¬í˜•ë„ â€” ì²´ì  / (ì§ê²½Â³)
-//    [24] ìˆ˜ê´€ ë©´ì  ëŒ€ë¹„ ìˆ˜ê³  â€” ë©´ì  / ìˆ˜ê³ 
+//    [20] ¼ö°ü ºñ´ëÄªµµ - ³²ºÏ/µ¿¼­ Á÷°æ ºñÀ²
+//    [21] ¼ö°ü Ãæ½Çµµ - ½ÇÁ¦ ¸éÀû / ¿øÇü °¡Á¤ ¸éÀû
+//    [22] ¼ö°ü ¹Ğµµ - Ã¼Àû / ¸éÀû
+//    [23] ¼ö°ü ±¸Çüµµ - Ã¼Àû / (Á÷°æ*Á÷°æ*Á÷°æ)
+//    [24] ¼ö°ü ¸éÀû ´ëºñ ¼ö°í - ¸éÀû / ¼ö°í
 //  Dependencies:
 //    - TreeLabeler.h (LabeledTree)
 //    - OpenCV
@@ -41,7 +41,7 @@
 //    g++ -std=c++17 -O2 -o feature_extract main_feature_extract.cpp \
 //        $(gdal-config --cflags --libs) \
 //        $(pkg-config --cflags --libs opencv4)
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ----------------------------------------------------------------------------------------------------------------------------
 //  Feature mode (FeatureExtractor::configure):
 //    Handcrafted : 17 color/texture + 8 LiDAR            = 25-dim   (legacy)
 //    Dino        : DINOv2 embedding(D) + 8 LiDAR          = D+8
@@ -59,16 +59,16 @@
 //
 //  Dependencies:
 //    - TreeLabeler.h (LabeledTree)
-//    - DinoEmbedder.h (ONNX Runtime)  â€” only used when mode != Handcrafted
+//    - DinoEmbedder.h (ONNX Runtime)  - only used when mode != Handcrafted
 //    - OpenCV
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ----------------------------------------------------------------------------------------------------------------------------
 
 #include "TreeLabeler.h"
 #include "DinoEmbedder.h"
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ----------------------------------------------------------------------------------------------------------------------------
 //  Feature mode / configuration
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ----------------------------------------------------------------------------------------------------------------------------
 
 enum class FeatureMode
 {
@@ -103,9 +103,9 @@ struct FeatureConfig
 	}
 };
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ----------------------------------------------------------------------------------------------------------------------------
 //  Feature vector for a single tree
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ----------------------------------------------------------------------------------------------------------------------------
 
 struct TreeFeature
 {
@@ -113,7 +113,7 @@ struct TreeFeature
 	std::string speciesCode;				// KOFTR_GROU(empty if outside forest)
 	std::string speciesName;				// KOFTR_NM
 	bool insideForest = false;
-	bool reliable = false;					// inside forest + far from edge. í´ë¦¬ê³¤ ê²½ê³„ì—ì„œ ì¶©ë¶„íˆ ì•ˆìª½
+	bool reliable = false;					// inside forest + far from edge. Æú¸®°ï °æ°è¿¡¼­ ÃæºĞÈ÷ ¾ÈÂÊ
 	bool imageUsable = false;			// not rejected by empty check
 	double distToEdge = 0.0;				// distance to polygon boundary (m)
 	std::string imagePath;					// saved crop image path
@@ -209,9 +209,9 @@ struct TreeFeature
 	}
 };
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ----------------------------------------------------------------------------------------------------------------------------
 //  Extraction result summary
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ----------------------------------------------------------------------------------------------------------------------------
 
 struct ExtractionResult
 {
@@ -227,7 +227,7 @@ class FeatureExtractor
 {
 public:
 
-	// â”€â”€â”€ Select feature mode (call once before extraction) â”€â”€â”€
+	// Select feature mode (call once before extraction) 
 	//  Handcrafted (default): no ONNX model is loaded.
 	//  Dino / DinoPlusHandcrafted: loads the ONNX model now; throws on failure.
 	static void configure(const FeatureConfig& cfg)
@@ -253,7 +253,7 @@ public:
 		return config().mode;
 	}
 
-	// â”€â”€â”€ Extract from saved crop images (reads from disk) â”€â”€â”€
+	// Extract from saved crop images (reads from disk) 
 	static ExtractionResult extractFromFiles(const std::vector<LabeledTree>& labeledTrees)
 	{
 		std::cout << "=== Feature Extraction (from saved images) ===\n";
@@ -323,7 +323,7 @@ public:
 		return result;
 	}
 
-	// â”€â”€â”€ Extract directly from aerial image (no disk I/O) â”€â”€â”€
+	// Extract directly from aerial image (no disk I/O) 
 	static ExtractionResult extractFromAerialImage(const std::vector<LabeledTree>& labeledTrees, const AerialPhoto& aerialImg)
 	{
 		std::cout << "=== Feature Extraction (from aerial image) ===\n";
@@ -388,7 +388,7 @@ public:
 		return result;
 	}
 
-	// â”€â”€â”€ Load features from CSV (resume from step 3) â”€â”€â”€
+	// Load features from CSV (resume from step 3) 
 	static ExtractionResult loadCSV(const std::string& path)
 	{
 		std::cout << "=== Loading features from CSV ===\n";
@@ -453,18 +453,6 @@ public:
 
 			std::vector<std::string> cols = TSICommon::split(line);
 
-/*
-			// Split by comma
-			std::vector<std::string> cols;
-			std::stringstream ss(line);
-			std::string cell;
-
-			while (std::getline(ss, cell, ','))
-			{
-				cols.push_back(cell);
-			}
-*/
-
 			if ((int)cols.size() < metaCols + nFeats)
 			{
 				continue;
@@ -520,7 +508,7 @@ public:
 		return result;
 	}
 
-	// â”€â”€â”€ Save features to CSV â”€â”€â”€
+	// features to CSV 
 	static void saveCSV(const ExtractionResult& result, const std::string& outPath)
 	{
 		std::ofstream out(outPath);
@@ -581,7 +569,7 @@ public:
 		std::cout << "  Feature CSV saved: " << outPath << " (" << result.all.size() << " rows, " << names.size() << " features)\n";
 	}
 
-	// â”€â”€â”€ Print feature importance summary â”€â”€â”€
+	// Print feature importance summary 
 	static void printFeatureStats(const ExtractionResult& result)
 	{
 		if (result.train.empty())
@@ -739,7 +727,7 @@ private:
 		return e;
 	}
 
-	// â”€â”€â”€ Batching â”€â”€â”€
+	// Batching 
 	//  Handcrafted mode: batch size 1 (features computed immediately).
 	//  Dino modes: crops are buffered and sent to ONNX Runtime in chunks,
 	//  so only batchSize crops are resident at a time (not all 230k).
@@ -820,7 +808,7 @@ private:
 		batch.items.clear();
 	}
 
-	// â”€â”€â”€ Feature composition by mode â”€â”€â”€
+	// Feature composition by mode 
 	//  [dino (D)] + [handcrafted (17)] + [lidar (8)]
 	static std::vector<float> composeFeature(const cv::Mat& crop, const TreePoint& tp, const std::vector<float>* dino)
 	{
@@ -846,7 +834,7 @@ private:
 		return f;
 	}
 
-	// â”€â”€â”€ Feature computation (25 dimensions) â”€â”€â”€
+	// Feature computation (25 dimensions) 
 
 	static std::vector<float> computeFeature(const cv::Mat& crop, const TreePoint& tp)
 	{
@@ -869,7 +857,7 @@ private:
 		std::vector<float> f;
 		f.reserve(17);
 
-		// BGR í†µê³„
+		// BGR Åë°è
 		// [0-5] BGR mean & stddev
 
 		cv::Scalar mean;
@@ -904,7 +892,7 @@ private:
 		gray.convertTo(grayF, CV_32F);
 
 		// [9] Texture contrast (Sobel gradient magnitude mean)
-		// ëŒ€ì¡°ë„: ì¸ì ‘ í”½ì…€ ì°¨ì˜ ì œê³± í‰ê· 
+		// ´ëÁ¶µµ: ÀÎÁ¢ ÇÈ¼¿ Â÷ÀÇ Á¦°ö Æò±Õ
 
 		cv::Mat dx;
 		cv::Mat dy;
@@ -919,7 +907,7 @@ private:
 		f.push_back((float)contract[0]);				// Contrast
 
 		// [10] Texture entropy (grayscale histogram)
-		// ê· ì¼ì„±: íˆìŠ¤í† ê·¸ë¨ ì—”íŠ¸ë¡œí”¼
+		// ±ÕÀÏ¼º: È÷½ºÅä±×·¥ ¿£Æ®·ÎÇÇ
 
 		cv::Mat grayU8;
 		grayF.convertTo(grayU8, CV_8U);
@@ -974,7 +962,7 @@ private:
 		return f;
 	}
 
-	// LiDAR structural features (8 dimensions, ì´¬ì˜ ì¡°ê±´ ë¬´ê´€) 
+	// LiDAR structural features (8 dimensions, ÃÔ¿µ Á¶°Ç ¹«°ü) 
 	static std::vector<float> computeLidar(const TreePoint& tp)
 	{
 		std::vector<float> f;
@@ -986,47 +974,47 @@ private:
 		f.push_back((float)tp.crownD);																	// CrownD
 		f.push_back((tp.crownD > 0.0) ? (float)(tp.height / tp.crownD) : 0.0f);		// H/CrownD ratio
 
-		// [20] ìˆ˜ê´€ ë¹„ëŒ€ì¹­ë„ â€” ë‚¨ë¶/ë™ì„œ ì§ê²½ ë¹„ìœ¨
-		//   ì›í˜•ì´ë©´ 1.0, íƒ€ì›í˜•ì´ë©´ 1ì—ì„œ ë²—ì–´ë‚¨
-		//   í¬í”ŒëŸ¬ëŠ” ì¢ê³  ê¸¸ì–´ì„œ ë¹„ëŒ€ì¹­ì´ í¼
-		//   ì´¬ì˜ ì¡°ê±´ ë¬´ê´€: LiDAR êµ¬ì¡° ì •ë³´
+		// [20] ¼ö°ü ºñ´ëÄªµµ - ³²ºÏ/µ¿¼­ Á÷°æ ºñÀ²
+		//   ¿øÇüÀÌ¸é 1.0, Å¸¿øÇüÀÌ¸é 1¿¡¼­ ¹ş¾î³²
+		//   Æ÷ÇÃ·¯´Â Á¼°í ±æ¾î¼­ ºñ´ëÄªÀÌ Å­
+		//   ÃÔ¿µ Á¶°Ç ¹«°ü: LiDAR ±¸Á¶ Á¤º¸
 		float crownAsymmetry = (tp.crownDEW > 0.0) ? (float)(tp.crownDSN / tp.crownDEW) : 1.0f;
 		f.push_back(crownAsymmetry);
 
-		// [21] ìˆ˜ê´€ ì¶©ì‹¤ë„ â€” ì‹¤ì œ ë©´ì  / ì›í˜• ê°€ì • ë©´ì 
-		//   ì›í˜• ìˆ˜ê´€ì´ë©´ Ï€/4 â‰ˆ 0.785
-		//   ë¶ˆê·œì¹™í•˜ë©´ ë‚®ê³ , ë¹½ë¹½í•˜ë©´ ë†’ìŒ
-		//   ìˆ˜ê´€ ì™¸ê³½ í˜•íƒœë¥¼ ë°˜ì˜
-		//   ì´¬ì˜ ì¡°ê±´ ë¬´ê´€: LiDAR êµ¬ì¡° ì •ë³´
+		// [21] ¼ö°ü Ãæ½Çµµ - ½ÇÁ¦ ¸éÀû / ¿øÇü °¡Á¤ ¸éÀû
+		//   ¿øÇü ¼ö°üÀÌ¸é PI/4 = 0.785
+		//   ºÒ±ÔÄ¢ÇÏ¸é ³·°í, »ª»ªÇÏ¸é ³ôÀ½
+		//   ¼ö°ü ¿Ü°û ÇüÅÂ¸¦ ¹İ¿µ
+		//   ÃÔ¿µ Á¶°Ç ¹«°ü: LiDAR ±¸Á¶ Á¤º¸
 		float crownCompact = (tp.crownD > 0.0) ? (float)(tp.crownArea / (tp.crownD * tp.crownD)) : 0.0f;
 		f.push_back(crownCompact);
 
-		// [22] ìˆ˜ê´€ ë°€ë„ â€” ì²´ì  / ë©´ì 
-		//   ìˆ˜ê´€ì´ ë†’ê²Œ ì†Ÿì•„ìˆìœ¼ë©´ ë°€ë„ê°€ ë†’ê³ 
-		//   ë‚©ì‘í•˜ê²Œ í¼ì ¸ìˆìœ¼ë©´ ë‚®ìŒ
-		//   ì¹¨ì—½ìˆ˜(ì›ì¶”í˜•)ëŠ” ë†’ê³ , í™œì—½ìˆ˜(ìš°ì‚°í˜•)ëŠ” ë‚®ìŒ
-		//   ì´¬ì˜ ì¡°ê±´ ë¬´ê´€: LiDAR êµ¬ì¡° ì •ë³´
+		// [22] ¼ö°ü ¹Ğµµ - Ã¼Àû / ¸éÀû
+		//   ¼ö°üÀÌ ³ô°Ô ¼Ú¾ÆÀÖÀ¸¸é ¹Ğµµ°¡ ³ô°í
+		//   ³³ÀÛÇÏ°Ô ÆÛÁ®ÀÖÀ¸¸é ³·À½
+		//   Ä§¿±¼ö(¿øÃßÇü)´Â ³ô°í, È°¿±¼ö(¿ì»êÇü)´Â ³·À½
+		//   ÃÔ¿µ Á¶°Ç ¹«°ü: LiDAR ±¸Á¶ Á¤º¸
 		float crownDensity = (tp.crownArea > 0.0) ? (float)(tp.crownVol / tp.crownArea) : 0.0f;
 		f.push_back(crownDensity);
 
-		// [23] ìˆ˜ê´€ êµ¬í˜•ë„ â€” ì²´ì  / (ì§ê²½Â³)
-		//   ìˆ˜ê´€ì´ êµ¬í˜•ì— ê°€ê¹Œìš°ë©´ ë†’ê³ 
-		//   ë‚©ì‘í•˜ê±°ë‚˜ ê¸¸ì­‰í•˜ë©´ ë‚®ìŒ
-		//   ì´¬ì˜ ì¡°ê±´ ë¬´ê´€: LiDAR êµ¬ì¡° ì •ë³´
+		// [23] ¼ö°ü ±¸Çüµµ - Ã¼Àû / (Á÷°æ*Á÷°æ*Á÷°æ)
+		//   ¼ö°üÀÌ ±¸Çü¿¡ °¡±î¿ì¸é ³ô°í
+		//   ³³ÀÛÇÏ°Å³ª ±æÂßÇÏ¸é ³·À½
+		//   ÃÔ¿µ Á¶°Ç ¹«°ü: LiDAR ±¸Á¶ Á¤º¸
 		float crownSphericity = (tp.crownD > 0.0) ? (float)(tp.crownVol / (tp.crownD * tp.crownD * tp.crownD)) : 0.0f;
 		f.push_back(crownSphericity);
 
-		// [24] ìˆ˜ê´€ ë©´ì  ëŒ€ë¹„ ìˆ˜ê³  â€” ë©´ì  / ìˆ˜ê³ 
-		//   í‚¤ ëŒ€ë¹„ ìˆ˜ê´€ì´ ë„“ìœ¼ë©´ ë†’ê³  (ìš°ì‚°í˜• í™œì—½ìˆ˜)
-		//   í‚¤ ëŒ€ë¹„ ìˆ˜ê´€ì´ ì¢ìœ¼ë©´ ë‚®ìŒ (ì›ì¶”í˜• ì¹¨ì—½ìˆ˜)
-		//   ì´¬ì˜ ì¡°ê±´ ë¬´ê´€: LiDAR êµ¬ì¡° ì •ë³´
+		// [24] ¼ö°ü ¸éÀû ´ëºñ ¼ö°í - ¸éÀû / ¼ö°í
+		//   Å° ´ëºñ ¼ö°üÀÌ ³ĞÀ¸¸é ³ô°í (¿ì»êÇü È°¿±¼ö)
+		//   Å° ´ëºñ ¼ö°üÀÌ Á¼À¸¸é ³·À½ (¿øÃßÇü Ä§¿±¼ö)
+		//   ÃÔ¿µ Á¶°Ç ¹«°ü: LiDAR ±¸Á¶ Á¤º¸
 		float crownAreaPerH = (tp.height > 0.0) ? (float)(tp.crownArea / tp.height) : 0.0f;
 		f.push_back(crownAreaPerH);
 
-		return f;		// ì´ 25ì°¨ì›
+		return f;		// ÃÑ 25Â÷¿ø
 	}
 
-	// â”€â”€â”€ LBP computation â”€â”€â”€
+	// LBP computation 
 	// 8-neighbor Local Binary Pattern
 	static cv::Mat computeLBP(const cv::Mat& gray)
 	{
@@ -1070,7 +1058,7 @@ private:
 		return lbp;
 	}
 
-	// â”€â”€â”€ GLCM computation â”€â”€â”€
+	// GLCM computation 
 	// Gray-Level Co-occurrence Matrix at distance=1, angle=0 (horizontal)
 	static void computeGLCM(const cv::Mat& gray, float& energy, float& correlation, float& homogeneity, float& dissimilarity)
 	{
@@ -1172,24 +1160,27 @@ private:
 		}
 	}
 
-
-	// Non-species forest-map codes: 81 Unstocked, 82 Bare Land, 83 Shrub ...
-	// Trees detected inside these polygons carry no species information.
-	static bool isNonSpeciesCode(const std::string& code)
-	{
-		return !code.empty() && code[0] == '8';
-	}
-
-	// â”€â”€â”€ Categorize into train/predict â”€â”€â”€
+	// Categorize into train/predict
+	//  train   : inside forest, reliable, and a real species code (C/D/E groups)
+	//  predict : outside forest
+	//  dropped : mixed forest (77) and non-forest codes (8x/9x) - no per-tree species information
 	static void categorize(ExtractionResult& result)
 	{
-		int excludedNonSpecies = 0;
+		int droppedMixed = 0;
+		int droppedNonForest = 0;
 
 		for (auto& tf : result.all)
 		{
-			if (tf.insideForest && isNonSpeciesCode(tf.speciesCode))
+			if (tf.insideForest && !tf.speciesCode.empty() && !SpeciesCodes::isTrainable(tf.speciesCode))
 			{
-				++excludedNonSpecies;		// neither train nor predict
+				if (SpeciesCodes::isMixed(tf.speciesCode))
+				{
+					++droppedMixed;
+				}
+				else
+				{
+					++droppedNonForest;
+				}
 
 				continue;
 			}
@@ -1204,13 +1195,13 @@ private:
 			}
 		}
 
-		if (excludedNonSpecies > 0)
+		if (droppedMixed + droppedNonForest > 0)
 		{
-			std::cout << "  Excluded (non-species codes 8x): " << excludedNonSpecies << "\n";
+			std::cout << "  Excluded: mixed forest " << droppedMixed << ", non-forest " << droppedNonForest << "\n";
 		}
 	}
 
-	// â”€â”€â”€ Print summary â”€â”€â”€
+	// Print summary 
 	static void printSummary(const ExtractionResult& result)
 	{
 		std::cout << "\n  === Feature Extraction Summary ===\n";

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "TSICommon.h"
+#include "SpeciesCodes.h"
 
 //수종 코드
 #define SPECIES_CODE			"KOFTR_GROU"

@@ -8,92 +8,12 @@
 
 inline bool hasSpeciesColor(const std::string& code)
 {
-	static const std::unordered_map<std::string, cv::Scalar> table =
-	{
-		{"11",{}},{"12",{}},{"13",{}},{"14",{}},{"15",{}},{"16",{}},
-		{"17",{}},{"18",{}},{"19",{}},{"20",{}},{"21",{}},{"10",{}},
-		{"31",{}},{"32",{}},{"33",{}},{"34",{}},{"35",{}},{"36",{}},
-		{"37",{}},{"38",{}},{"39",{}},{"40",{}},{"41",{}},{"42",{}},
-		{"43",{}},{"44",{}},{"45",{}},{"46",{}},{"47",{}},{"48",{}},
-		{"49",{}},{"30",{}},{"61",{}},{"62",{}},{"63",{}},{"64",{}},
-		{"65",{}},{"66",{}},{"67",{}},{"68",{}},{"60",{}},{"77",{}},
-		{"78",{}},{"81",{}},{"82",{}},{"83",{}},{"91",{}},{"92",{}},
-		{"93",{}},{"94",{}},{"95",{}},{"99",{}},
-
-	};
-
-	return (table.count(code) > 0);
+	return SpeciesCodes::has(code);
 }
 
 inline cv::Scalar getSpeciesColor(const std::string& code)
 {
-	// 수종그룹코드(KOFTR_GROU) → BGR 색상 매핑
-	static const std::unordered_map<std::string, cv::Scalar> table =
-	{
-		// ── 침엽수 (녹색 계열) ──────────────────────────
-		{"C", { 34, 139,  34}},   // 침엽수
-		{"11", { 34, 139,  34}},   // 소나무
-		{"12", {  0,  80,   0}},   // 잣나무
-		{"13", { 19,  69, 139}},   // 낙엽송
-		{"14", {  0, 165, 255}},   // 리기다소나무
-		{"15", { 60, 179, 113}},   // 곰솔
-		{"16", {128, 200,  80}},   // 전나무
-		{"17", { 80, 220, 160}},   // 편백나무
-		{"18", {100, 240, 100}},   // 삼나무
-		{"19", { 50, 150,  50}},   // 가문비나무
-		{"20", {  0, 120,  80}},   // 비자나무
-		{"21", {180, 230, 180}},   // 은행나무
-		{"10", {150, 200, 150}},   // 기타침엽수
-		// ── 낙엽활엽수 (황/갈색 계열) ──────────────────
-		{"D", { 30, 144, 255}},   // 낙엽수
-		{"31", { 30, 144, 255}},   // 상수리나무
-		{"32", { 65, 105, 225}},   // 신갈나무
-		{"33", { 99, 149, 234}},   // 굴참나무
-		{"34", {130, 170, 250}},   // 기타참나무류
-		{"35", { 42, 200, 180}},   // 오리나무
-		{"36", {  0, 210, 210}},   // 고로쇠나무
-		{"37", {200, 230, 255}},   // 자작나무
-		{"38", {120, 160, 200}},   // 박달나무
-		{"39", { 20, 100, 200}},   // 밤나무
-		{"40", { 80, 180, 230}},   // 물푸레나무
-		{"41", { 50, 130, 180}},   // 서어나무
-		{"42", {160, 200, 230}},   // 때죽나무
-		{"43", { 90, 160, 220}},   // 호두나무
-		{"44", {110, 190, 240}},   // 백합나무
-		{"45", {170, 220, 255}},   // 포플러
-		{"46", {120,  80, 200}},   // 벚나무
-		{"47", { 80,  50, 160}},   // 느티나무
-		{"48", {100,  70, 180}},   // 층층나무
-		{"49", {150, 120, 210}},   // 아까시나무
-		{"30", {180, 160, 230}},   // 기타활엽수
-		// ── 상록활엽수 (진녹/청록 계열) ────────────────
-		{"E", {  0,  80,  60}},   // 상록수
-		{"61", {  0,  80,  60}},   // 가시나무
-		{"62", {  0, 100,  70}},   // 구실잣밤나무
-		{"63", { 20, 120,  80}},   // 녹나무
-		{"64", { 40, 130,  90}},   // 굴거리나무
-		{"65", { 60, 140, 100}},   // 황칠나무
-		{"66", { 80, 150, 110}},   // 사스레피나무
-		{"67", {100, 160, 120}},   // 후박나무
-		{"68", {120, 170, 130}},   // 새덕이
-		{"60", {140, 180, 140}},   // 기타상록활엽수
-		// ── 혼효·죽림·비산림 (회색/특수 계열) ─────────
-		{"N", {128, 128,   0}},   // 비산림
-		{"77", {128, 128,   0}},   // 침활혼효림
-		{"78", {  0, 200, 100}},   // 죽림
-		{"81", {211, 211, 211}},   // 미립목지
-		{"82", {169, 169, 169}},   // 제지
-		{"83", {144, 238, 144}},   // 관목덤불
-		{"91", {192, 192, 192}},   // 주거지
-		{"92", {200, 230, 200}},   // 초지
-		{"93", {220, 220, 180}},   // 경작지
-		{"94", {255, 200,   0}},   // 수체
-		{"95", {180, 255, 180}},   // 과수원
-		{"99", {230, 230, 230}},   // 비산림
-	};
-
-	auto it = table.find(code);
-	return (it != table.end()) ? it->second : cv::Scalar(200, 200, 200);
+	return SpeciesCodes::color(code);
 
 /*
 	std::hash<std::string> hasher;
@@ -106,115 +26,14 @@ inline cv::Scalar getSpeciesColor(const std::string& code)
 // // Shifts toward white by blending, so tree points (vivid) stand out
 inline cv::Scalar getPolygonFillColor(const std::string& code)
 {
-	cv::Scalar baseColor = getSpeciesColor(code);
-
-	double blend = 0.6;
-
-	return cv::Scalar(baseColor[0] + (255 - baseColor[0]) * blend, baseColor[1] + (255 - baseColor[1]) * blend, baseColor[2] + (255 - baseColor[2]) * blend);
+	return SpeciesCodes::fillColor(code);
 }
 
 // ─── Species code -> English name mapping ───
 
-inline const std::string& getSpeciesName(const std::string& code, bool getKo = false)
+inline const std::string getSpeciesName(const std::string& code, bool getKo = false)
 {
-	struct SpeciesEntry
-	{
-		const char* code;
-		const char* nameKo;
-		const char* nameEn;
-	};
-
-	static const std::vector<SpeciesEntry> entries =
-	{
-		// 침엽수
-		{"C","침엽수",         "Conifer"},
-		{"11","소나무",         "Pine"},
-		{"12","잣나무",         "Korean Pine"},
-		{"13","낙엽송",         "Larch"},
-		{"14","리기다소나무",   "Pitch Pine"},
-		{"15","곰솔",           "Black Pine"},
-		{"16","전나무",         "Fir"},
-		{"17","편백나무",       "Hinoki Cypress"},
-		{"18","삼나무",         "Cedar"},
-		{"19","가문비나무",     "Spruce"},
-		{"20","비자나무",       "Japanese Torreya"},
-		{"21","은행나무",       "Ginkgo"},
-		{"10","기타침엽수",     "Other Conifers"},
-		// 낙엽활엽수
-		{"D","낙엽수",     "Deciduous"},
-		{"31","상수리나무",     "Sawtooth Oak"},
-		{"32","신갈나무",       "Mongolian Oak"},
-		{"33","굴참나무",       "Oriental Oak"},
-		{"34","기타참나무류",   "Other Oaks"},
-		{"35","오리나무",       "Alder"},
-		{"36","고로쇠나무",     "Painted Maple"},
-		{"37","자작나무",       "Birch"},
-		{"38","박달나무",       "Asian White Birch"},
-		{"39","밤나무",         "Chestnut"},
-		{"40","물푸레나무",     "Ash"},
-		{"41","서어나무",       "Hornbeam"},
-		{"42","때죽나무",       "Snowbell"},
-		{"43","호두나무",       "Walnut"},
-		{"44","백합나무",       "Tulip Tree"},
-		{"45","포플러",         "Poplar"},
-		{"46","벚나무",         "Cherry"},
-		{"47","느티나무",       "Zelkova"},
-		{"48","층층나무",       "Dogwood"},
-		{"49","아까시나무",     "Black Locust"},
-		{"30","기타활엽수",     "Other Deciduous"},
-		// 상록활엽수
-		{"E","상록수",       "Evergreen"},
-		{"61","가시나무",       "Evergreen Oak"},
-		{"62","구실잣밤나무",   "Castanopsis"},
-		{"63","녹나무",         "Camphor Tree"},
-		{"64","굴거리나무",     "Daphniphyllum"},
-		{"65","황칠나무",       "Dendropanax"},
-		{"66","사스레피나무",   "Eurya"},
-		{"67","후박나무",       "Machilus"},
-		{"68","새덕이",         "Neolitsea"},
-		{"60","기타상록활엽수", "Other Evergreen"},
-		// 혼효·비산림
-		{"N","비산림",     "Non-Forest"},
-		{"77","침활혼효림",     "Mixed Forest"},
-		{"78","죽림",           "Bamboo"},
-		{"81","미립목지",       "Unstocked"},
-		{"82","제지",           "Bare Land"},
-		{"83","관목덤불",       "Shrub"},
-		{"91","주거지",         "Residential"},
-		{"92","초지",           "Grassland"},
-		{"93","경작지",         "Farmland"},
-		{"94","수체",           "Water"},
-		{"95","과수원",         "Orchard"},
-		{"99","비산림",         "Non-Forest"},
-	};
-
-	static std::map<std::string, std::string> tableEn;
-	static std::map<std::string, std::string> tableKo;
-	static bool initialized = false;
-
-	if (!initialized)
-	{
-		for (auto& e : entries)
-		{
-			tableEn[e.code] = e.nameEn;
-			tableKo[e.code] = e.nameKo;
-		}
-
-		initialized = true;
-	}
-
-	static const std::string empty;
-
-	if (getKo)
-	{
-		auto it = tableKo.find(code);
-		
-		return (it != tableKo.end()) ? it->second : empty;
-	}
-
-	auto it = tableEn.find(code);
-
-	return (it != tableEn.end()) ? it->second : empty;
+	return SpeciesCodes::name(code, getKo);
 }
 
 class ForestLoader

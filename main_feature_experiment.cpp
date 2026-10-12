@@ -45,13 +45,7 @@ static std::vector<LabeledTree> loadAllLabeledTrees(const std::string& input)
 //  If you already have this mapping in ForestCommon / HierarchicalClassifier, call that instead.
 static std::string groupOf(const std::string& code)
 {
-	static const std::set<std::string> conifer = { "11", "12", "13", "14", "15", "16", "17", "18", "19", "20" };
-	static const std::set<std::string> broadleaf = { "31", "32", "33", "34", "35", "36", "37", "38", "39", "40" };
-
-	if (conifer.count(code)) return "C";
-	if (broadleaf.count(code)) return "B";
-
-	return "O";
+	return SpeciesCodes::group(code);		// "C" / "D" / "E" / "M" / "N"
 }
 
 static int runExtract(const std::string& input, const std::string& outDir, const std::string& onnxPath)
