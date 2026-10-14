@@ -44,7 +44,7 @@ struct OverlayOptions
 	// Tree point rendering
 	bool drawTrees = true;	
 	bool drawCrown = true;							// draw crown circle
-	bool drawCenter = true;							// draw center dot
+	bool drawCenter = false;							// draw center dot
 	int centerRadius = 3;								// center dot radius (px)
 	cv::Scalar centerColor = {0, 255, 255};	// yellow (BGR)
 	double crownAlpha = 0.3;						// crown circle transparency
@@ -313,6 +313,18 @@ public:
 		cv::imwrite(outputPath, output);
 
 		std::cout << "  Saved: " << outputPath << " (" << imgW << "x" << imgH << ")\n";
+	}
+
+	// Draw onto an existing canvas (e.g. a tile or a downscaled copy); geoToPxF maps tree coords to canvas pixels
+	static void drawTreesOn(cv::Mat& canvas, const TreeData& trees, std::function<cv::Point2f(double, double)> geoToPxF, double pixPerMeter, const OverlayOptions& opts)
+	{
+		drawTreePoints(canvas, canvas.cols, canvas.rows, trees, geoToPxF, pixPerMeter, opts);
+	}
+
+	// Colour boxes + labels at (legendX, legendY), titled opts.resultTitle; entries sorted by label
+	static void drawLegendOn(cv::Mat& canvas, const std::map<std::string, cv::Scalar>& colors, const OverlayOptions& opts)
+	{
+		drawResultLegend(canvas, colors, {}, {}, {}, opts);
 	}
 
 private:
@@ -767,15 +779,18 @@ private:
 				if (!crownLayer.empty())
 				{
 					//cv::circle(crownLayer, {cx, cy}, crownPxR, cColor, -1, cv::LINE_AA);
-					cv::circle(crownLayer, {cx, cy}, crownPxR, cColor * 0.7, 2, cv::LINE_AA);
+					cv::circle(crownLayer, {cx, cy}, crownPxR, cColor * 0.7, (opts.crownOutlineWidth > 0) ? opts.crownOutlineWidth : 2, cv::LINE_AA);
 
 					// treeId ÅØ½ºÆ®
-					cv::putText(crownLayer, std::to_string(t.treeId), cv::Point(cx + crownPxR + 1, cy), cv::FONT_HERSHEY_PLAIN, 0.6, cColor, 1);
+					if (opts.showTreeId)
+					{
+						cv::putText(crownLayer, std::to_string(t.treeId), cv::Point(cx + crownPxR + 1, cy), cv::FONT_HERSHEY_PLAIN, 0.6, cColor, 1);
+					}
 
 				}
 				else
 				{
-					cv::circle(canvas, {cx, cy}, crownPxR, cColor, 1, cv::LINE_AA);
+					cv::circle(canvas, {cx, cy}, crownPxR, cColor, (opts.crownOutlineWidth > 0) ? opts.crownOutlineWidth : 1, cv::LINE_AA);
 				}
 			}
 
@@ -786,7 +801,7 @@ private:
 
 				if ((cx >= 0) && (cx < imgW) && (cy >= 0) && (cy < imgH))
 				{
-					//cv::circle(canvas, { cx, cy }, opts.centerRadius, dotColor, -1, cv::LINE_AA);
+					cv::circle(canvas, { cx, cy }, opts.centerRadius, dotColor, -1, cv::LINE_AA);
 				}
 			}
 

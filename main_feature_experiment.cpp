@@ -27,6 +27,7 @@
 #include "Hierarchicalclassifier.h"
 #include "CourseCrossValidator.h"
 #include "CourseDataSetLoader.h"
+#include "OverlayRenderer.h"
 
 #include <unordered_map>
 #include <unordered_set>
@@ -451,26 +452,24 @@ static std::unordered_map<long long, std::vector<std::string>> loadDinoEmbedding
 	return result;
 }
 
-int runExport(const std::string& configPath, const std::string& outDir, const std::string& courseName)
+static const CourseDataSet& findCourse(const CourseDataSetConfig& cfg, const std::string& courseName)
 {
-	CourseDataSetConfig cfg = CourseDataSetConfigLoader::load(configPath);
-
-	const CourseDataSet* course = nullptr;
-
 	for (auto& c : cfg.courses)
 	{
 		if (c.courseName == courseName)
 		{
-			course = &c;
-
-			break;
+			return c;
 		}
 	}
 
-	if (!course)
-	{
-		throw std::runtime_error("Course not found in config: " + courseName);
-	}
+	throw std::runtime_error("Course not found in config: " + courseName);
+}
+
+int runExport(const std::string& configPath, const std::string& outDir, const std::string& courseName)
+{
+	CourseDataSetConfig cfg = CourseDataSetConfigLoader::load(configPath);
+
+	const CourseDataSet* course = &findCourse(cfg, courseName);
 
 	bool useBoundary = !course->boundaryPath.empty();
 
@@ -629,10 +628,412 @@ int runExport(const std::string& configPath, const std::string& outDir, const st
 	return 0;
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------
+//  render : export result drawn on the aerial photo (OverlayRenderer drawing functions)
+//    green  (2px) : trees in <out_dir>/<course>/trees.json
+//    yellow (1px) : InsideForest == N but not in trees.json (dropped by export filters)
+//    gray   (1px) : InsideForest == Y (forest), omitted with --skip-forest
+//  Outputs in <out_dir>/<course>/ :
+//    render_overview.jpg          1/4 scale, whole image
+//    render_tile_1..3.jpg         2048x2048 at full resolution, densest trees.json areas
+//  Geo -> pixel uses the aerial GeoTransform inverse, as TreeLabeler does for crops.
+// ----------------------------------------------------------------------------------------------------------------------------
+
+static const int kRenderTileSize = 2048;
+static const int kRenderTileCount = 3;
+static const int kRenderDensityCell = 256;
+static const double kRenderOverviewScale = 0.25;
+
+// trees.json as written by runExport (one tree per line)
+static std::vector<TreePoint> loadExportedTrees(const std::string& path)
+{
+	std::ifstream file(path);
+
+	if (!file.is_open())
+	{
+		throw std::runtime_error("Failed to open: " + path + " (run export first)");
+	}
+
+	std::vector<TreePoint> result;
+	std::string line;
+
+	while (std::getline(file, line))
+	{
+		TreePoint tp;
+
+		if (sscanf_s(line.c_str(), " {\"id\": %lld, \"x\": %lf, \"y\": %lf, \"height\": %lf, \"crownD\": %lf", &tp.treeId, &tp.x, &tp.y, &tp.height, &tp.crownD) == 5)
+		{
+			result.push_back(tp);
+		}
+	}
+
+	if (result.empty())
+	{
+		throw std::runtime_error("No trees parsed from: " + path);
+	}
+
+	return result;
+}
+
+// TreeID (global, offset applied) -> InsideForest, for the course's rows in features_dino.csv
+static std::unordered_map<long long, bool> loadInsideForestFlags(const std::string& path, const std::string& courseName)
+{
+	std::ifstream file(path);
+
+	if (!file.is_open())
+	{
+		throw std::runtime_error("Failed to open feature CSV: " + path);
+	}
+
+	const std::string courseDir = "/" + courseName + "/";
+
+	std::unordered_map<long long, bool> result;
+	std::string line;
+
+	std::getline(file, line);		// header
+
+	while (std::getline(file, line))
+	{
+		// only the first 5 columns are needed: TreeID,InsideForest,Reliable,DistToEdge,ImagePath
+		size_t c[5];
+		size_t pos = 0;
+		bool ok = true;
+
+		for (int i = 0 ; i < 5 ; ++i)
+		{
+			c[i] = line.find(',', pos);
+
+			if (c[i] == std::string::npos)
+			{
+				ok = false;
+
+				break;
+			}
+
+			pos = c[i] + 1;
+		}
+
+		if (!ok)
+		{
+			continue;
+		}
+
+		std::string imagePath = line.substr(c[3] + 1, c[4] - c[3] - 1);
+
+		if (imagePath.find(courseDir) == std::string::npos)
+		{
+			continue;
+		}
+
+		long long id = -1;
+
+		try { id = std::stoll(line.substr(0, c[0])); }
+		catch (...) { continue; }
+
+		result[id] = (line.substr(c[0] + 1, c[1] - c[0] - 1) == "Y");
+	}
+
+	return result;
+}
+
+// Up to `count` non-overlapping tile x tile windows with the most points (cell-aligned)
+static std::vector<cv::Rect> densestTiles(const std::vector<cv::Point2f>& pts, int imgW, int imgH, int tile, int cell, int count)
+{
+	int gw = (imgW + cell - 1) / cell;
+	int gh = (imgH + cell - 1) / cell;
+	int k = tile / cell;
+
+	cv::Mat grid = cv::Mat::zeros(gh, gw, CV_64F);
+
+	for (auto& p : pts)
+	{
+		int gx = (int)p.x / cell;
+		int gy = (int)p.y / cell;
+
+		if ((p.x >= 0) && (p.y >= 0) && (gx < gw) && (gy < gh))
+		{
+			grid.at<double>(gy, gx) += 1.0;
+		}
+	}
+
+	cv::Mat sum;
+	cv::integral(grid, sum, CV_64F);
+
+	int maxCx = std::max(0, gw - k);
+	int maxCy = std::max(0, gh - k);
+
+	std::vector<cv::Rect> chosenCells;
+	std::vector<cv::Rect> tiles;
+
+	for (int n = 0 ; n < count ; ++n)
+	{
+		double best = 0.0;
+		cv::Rect bestCells;
+
+		for (int cy = 0 ; cy <= maxCy ; ++cy)
+		{
+			for (int cx = 0 ; cx <= maxCx ; ++cx)
+			{
+				cv::Rect r(cx, cy, std::min(k, gw - cx), std::min(k, gh - cy));
+
+				bool overlaps = false;
+
+				for (auto& c : chosenCells)
+				{
+					if ((r & c).area() > 0)
+					{
+						overlaps = true;
+
+						break;
+					}
+				}
+
+				if (overlaps)
+				{
+					continue;
+				}
+
+				double s = sum.at<double>(r.y + r.height, r.x + r.width) - sum.at<double>(r.y, r.x + r.width) - sum.at<double>(r.y + r.height, r.x) + sum.at<double>(r.y, r.x);
+
+				if (s > best)
+				{
+					best = s;
+					bestCells = r;
+				}
+			}
+		}
+
+		if (best <= 0.0)
+		{
+			break;
+		}
+
+		chosenCells.push_back(bestCells);
+
+		cv::Rect px(bestCells.x * cell, bestCells.y * cell, tile, tile);
+		tiles.push_back(px & cv::Rect(0, 0, imgW, imgH));
+	}
+
+	return tiles;
+}
+
+static cv::Mat toBGR8(const cv::Mat& img)
+{
+	cv::Mat out;
+
+	if (img.channels() == 4)
+	{
+		cv::cvtColor(img, out, cv::COLOR_BGRA2BGR);
+	}
+	else if (img.channels() == 1)
+	{
+		cv::cvtColor(img, out, cv::COLOR_GRAY2BGR);
+	}
+	else
+	{
+		out = img.clone();
+	}
+
+	if (out.depth() != CV_8U)
+	{
+		out.convertTo(out, CV_8U);
+	}
+
+	return out;
+}
+
+int runRender(const std::string& configPath, const std::string& outDir, const std::string& courseName, bool skipForest)
+{
+	CourseDataSetConfig cfg = CourseDataSetConfigLoader::load(configPath);
+	const CourseDataSet& course = findCourse(cfg, courseName);
+
+	std::string courseDir = TSICommon::join(outDir, courseName);
+
+	std::cout << "=== Render: " << courseName << (skipForest ? " (--skip-forest)" : "") << " ===\n";
+
+	// 1. Tree sets (EPSG:5179)
+	TreeData exported;
+	exported.tps = loadExportedTrees(TSICommon::join(courseDir, "trees.json"));
+
+	std::unordered_set<long long> exportedIds;
+
+	for (auto& tp : exported.tps)
+	{
+		exportedIds.insert(tp.treeId);
+	}
+
+	TreeData all = TreeLoader::load(course.treeInfoPath, course.treeSrcEPSG, kExportEpsg);
+	auto insideForest = loadInsideForestFlags(TSICommon::join(outDir, "features_dino.csv"), courseName);
+
+	TreeData dropped;		// InsideForest == N, not exported
+	TreeData forest;		// InsideForest == Y
+	int noRow = 0;
+
+	for (auto& tp : all.tps)
+	{
+		if (exportedIds.count(tp.treeId))
+		{
+			continue;
+		}
+
+		auto it = insideForest.find(tp.treeId + course.treeIdOffset);
+
+		if (it == insideForest.end())
+		{
+			++noRow;
+
+			continue;
+		}
+
+		(it->second ? forest : dropped).tps.push_back(tp);
+	}
+
+	std::cout << "  trees.json: " << exported.tps.size() << ", InsideForest=N not exported: " << dropped.tps.size() << ", InsideForest=Y: " << forest.tps.size() << ", no feature row: " << noRow << "\n";
+
+	// 2. Aerial photo + inverse GeoTransform
+	AerialPhoto aerial = AerialLoader::load(course.aerialImgPath);
+
+	if ((aerial.epsg > 0) && (aerial.epsg != kExportEpsg))
+	{
+		OGRCoordinateTransformation* ct = CoordTransformer::createTransform(kExportEpsg, aerial.epsg);
+
+		if (!ct)
+		{
+			throw std::runtime_error("Failed to create transform EPSG:" + std::to_string(kExportEpsg) + " -> EPSG:" + std::to_string(aerial.epsg));
+		}
+
+		for (TreeData* td : { &exported, &dropped, &forest })
+		{
+			for (auto& tp : td->tps)
+			{
+				ct->Transform(1, &tp.x, &tp.y);
+			}
+		}
+
+		OGRCoordinateTransformation::DestroyCT(ct);
+	}
+
+	double gt[6] = { aerial.originX, aerial.pixelW, aerial.rotationX, aerial.originY, aerial.rotationY, aerial.pixelH };
+	double igt[6];
+
+	if (!CoordTransformer::computeInverseGT(gt, igt))
+	{
+		throw std::runtime_error("Failed to compute inverse GeoTransform");
+	}
+
+	double pixPerMeter = std::abs(igt[1]);
+
+	auto geoToPx = [&](double gx, double gy) -> cv::Point2f
+	{
+		return cv::Point2f((float)(igt[0] + igt[1] * gx + igt[2] * gy), (float)(igt[3] + igt[4] * gx + igt[5] * gy));
+	};
+
+	// 3. Styles
+	OverlayOptions base;
+	base.drawPolygons = false;
+	base.crownAlpha = 0.0;				// draw straight onto the canvas
+	base.showTreeId = false;
+	base.drawCenter = true;
+
+	OverlayOptions greenOpts = base;
+	greenOpts.crownColor = greenOpts.centerColor = cv::Scalar(0, 220, 0);
+	greenOpts.crownOutlineWidth = 2;
+	greenOpts.centerRadius = 2;
+
+	OverlayOptions yellowOpts = base;
+	yellowOpts.crownColor = yellowOpts.centerColor = cv::Scalar(0, 230, 255);
+	yellowOpts.crownOutlineWidth = 1;
+	yellowOpts.centerRadius = 1;
+
+	OverlayOptions grayOpts = base;
+	grayOpts.crownColor = grayOpts.centerColor = cv::Scalar(160, 160, 160);
+	grayOpts.crownOutlineWidth = 1;
+	grayOpts.centerRadius = 1;
+
+	OverlayOptions legendOpts = base;
+	legendOpts.legendX = 20;
+	legendOpts.legendY = 20;
+	legendOpts.resultTitle = courseName + " export: " + std::to_string(exported.tps.size()) + " trees";
+
+	std::map<std::string, cv::Scalar> legend =
+	{
+		{ "1 trees.json: " + std::to_string(exported.tps.size()), greenOpts.crownColor },
+		{ "2 InsideForest=N, not exported: " + std::to_string(dropped.tps.size()), yellowOpts.crownColor },
+		{ "3 InsideForest=Y (forest): " + (skipForest ? std::string("not drawn") : std::to_string(forest.tps.size())), grayOpts.crownColor },
+	};
+
+	auto drawAll = [&](cv::Mat& canvas, std::function<cv::Point2f(double, double)> toPx, double ppm)
+	{
+		if (!skipForest)
+		{
+			OverlayRenderer::drawTreesOn(canvas, forest, toPx, ppm, grayOpts);
+		}
+
+		OverlayRenderer::drawTreesOn(canvas, dropped, toPx, ppm, yellowOpts);
+		OverlayRenderer::drawTreesOn(canvas, exported, toPx, ppm, greenOpts);
+		OverlayRenderer::drawLegendOn(canvas, legend, legendOpts);
+	};
+
+	TSICommon::mkdirs(courseDir);
+
+	// 4. Overview (1/4)
+	{
+		cv::Mat small;
+		cv::resize(aerial.image, small, cv::Size(), kRenderOverviewScale, kRenderOverviewScale, cv::INTER_AREA);
+
+		cv::Mat canvas = toBGR8(small);
+		small.release();
+
+		drawAll(canvas, [&](double gx, double gy) { return geoToPx(gx, gy) * (float)kRenderOverviewScale; }, pixPerMeter * kRenderOverviewScale);
+
+		std::string path = TSICommon::join(courseDir, "render_overview.jpg");
+		cv::imwrite(path, canvas);
+
+		std::cout << "  Saved: " << path << " (" << canvas.cols << "x" << canvas.rows << ")\n";
+	}
+
+	// 5. Tiles at full resolution, densest trees.json areas
+	std::vector<cv::Point2f> exportedPx;
+
+	for (auto& tp : exported.tps)
+	{
+		exportedPx.push_back(geoToPx(tp.x, tp.y));
+	}
+
+	std::vector<cv::Rect> tiles = densestTiles(exportedPx, aerial.image.cols, aerial.image.rows, kRenderTileSize, kRenderDensityCell, kRenderTileCount);
+
+	for (size_t i = 0 ; i < tiles.size() ; ++i)
+	{
+		const cv::Rect& r = tiles[i];
+
+		cv::Mat canvas = toBGR8(aerial.image(r));
+
+		drawAll(canvas, [&](double gx, double gy) { return geoToPx(gx, gy) - cv::Point2f((float)r.x, (float)r.y); }, pixPerMeter);
+
+		int inTile = 0;
+
+		for (auto& p : exportedPx)
+		{
+			if (r.contains(cv::Point((int)p.x, (int)p.y)))
+			{
+				++inTile;
+			}
+		}
+
+		std::string path = TSICommon::join(courseDir, "render_tile_" + std::to_string(i + 1) + ".jpg");
+		cv::imwrite(path, canvas);
+
+		std::cout << "  Saved: " << path << " (" << r.width << "x" << r.height << " at px " << r.x << "," << r.y << ", trees.json trees: " << inTile << ")\n";
+	}
+
+	return 0;
+}
+
 // TreeSpeciesIdentification.exe                                    ← 기존 파이프라인
 // TreeSpeciesIdentification.exe experiment extract <입력> out\ models\dinov2_vits14.onnx
 // TreeSpeciesIdentification.exe experiment eval out\
 // TreeSpeciesIdentification.exe --experiment export ..\..\Resources\courses_dataset.json out\ Hwarang
+// TreeSpeciesIdentification.exe --experiment render ..\..\Resources\courses_dataset.json out\ Hwarang [--skip-forest]
 
 int runFeatureExperiment(int argc, char** argv)
 {
