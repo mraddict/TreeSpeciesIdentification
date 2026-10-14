@@ -11,6 +11,10 @@ msbuild TreeSpeciesIdentification.sln /p:Configuration=Release /p:Platform=x64 /
 TreeSpeciesIdentification.exe                     기존 파이프라인
 TreeSpeciesIdentification.exe experiment extract <config> out\ <onnx>
 TreeSpeciesIdentification.exe experiment eval|sweep|lidar out\
+TreeSpeciesIdentification.exe --experiment export <config> out\ <course>
+- export: out\<course>\trees.json 생성 (id, x, y(EPSG:5179), height, crownD, embedding[384], suggested=null, confidence=0)
+  - 임베딩은 out\features_dino.csv 에서 읽음 (extract 선행 필요). id는 tree_info CSV의 TreeID (코스 오프셋 미적용)
+  - 코스 내부 기준: config 코스 항목의 "courseBoundary" SHP. 없으면 경고 후 InsideForest == N 으로 대체
 - 코스 설정: ..\..\Resources\courses_dataset.json
 - 모델: ..\..\Resources\models\dinov2_vits14.onnx
 - 로그: results\ 및 out\logs\
