@@ -275,9 +275,9 @@ int runLidar(const std::string& outDir)
 	return 0;
 }
 
-// TreeSpecies.exe                                    ← 기존 파이프라인
-// TreeSpecies.exe experiment extract <입력> out\ models\dinov2_vits14.onnx
-// TreeSpecies.exe experiment eval out\
+// TreeSpeciesIdentification.exe                                    ← 기존 파이프라인
+// TreeSpeciesIdentification.exe experiment extract <입력> out\ models\dinov2_vits14.onnx
+// TreeSpeciesIdentification.exe experiment eval out\
 
 int runFeatureExperiment(int argc, char** argv)
 {

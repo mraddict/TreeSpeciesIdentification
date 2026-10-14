@@ -539,7 +539,7 @@ int main(int argc, char** argv)
 
 			if (experiment)
 			{
-				// TreeSpecies.exe experiment extract <입력> out\ models\dinov2_vits14.onnx
+				// TreeSpeciesIdentification.exe experiment extract <입력> out\ models\dinov2_vits14.onnx
 				return runExtract(allLabeledTree, "out", "../../Resources/models/dinov2_vits14.onnx");
 			}
 
