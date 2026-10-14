@@ -1163,7 +1163,10 @@ private:
 	// Categorize into train/predict
 	//  train   : inside forest, reliable, and a real species code (C/D/E groups)
 	//  predict : outside forest
-	//  dropped : mixed forest (77) and non-forest codes (8x/9x) - no per-tree species information
+	//  dropped : inside forest with a non-trainable code - no per-tree species information
+	//            mixed forest (77, group M) is counted as 'mixed'
+	//            non-forest (78, 81-83, 91-99, group N) and codes missing from SpeciesCodes are counted as 'non-forest'
+	//  skipped : inside forest but no code or not reliable - in neither list and not counted
 	static void categorize(ExtractionResult& result)
 	{
 		int droppedMixed = 0;
