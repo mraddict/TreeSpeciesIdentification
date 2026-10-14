@@ -1,10 +1,10 @@
-ï»¿#pragma once
+#pragma once
 
 #include "SpeciesClassifier.h"
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
 //  Species group definitions
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
 
 struct SpeciesGroup
 {
@@ -13,9 +13,9 @@ struct SpeciesGroup
 	std::vector<std::string> speciesCode;
 };
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
 //  Hierarchical prediction result
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
 
 struct HierarchicalResult
 {
@@ -42,30 +42,30 @@ struct HierarchicalResult
 	double distToEdge = 0.0;
 };
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
 //  Options
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
 
 struct HierarchicalOptions
 {
 /*
 	// Group definitions
-	// Conifers (ì¹¨ì—½ìˆ˜)
+	// Conifers (Ä§¿±¼ö)
 	std::vector<std::string> coniferCodes =
 	{
 		"11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "10"
 	};
-	// Deciduous broadleaf (ë‚™ì—½í™œì—½ìˆ˜)
+	// Deciduous broadleaf (³«¿±È°¿±¼ö)
 	std::vector<std::string> deciduousCodes =
 	{
 		"31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "30"
 	};
-	// Evergreen broadleaf (ìƒë¡í™œì—½ìˆ˜)
+	// Evergreen broadleaf (»ó·ÏÈ°¿±¼ö)
 	std::vector<std::string> evergreenCodes =
 	{
 		"61", "62", "63", "64", "65", "66", "67", "68", "60"
 	};
-	// Non-forest / mixed (í˜¼íš¨Â·ë¹„ì‚°ë¦¼)
+	// Non-forest / mixed (È¥È¿¡¤ºñ»ê¸²)
 	std::vector<std::string> nonForestCodes =
 	{
 		"77", "78", "81", "82", "83", "91", "92", "93", "94", "95", "99"
@@ -88,9 +88,9 @@ struct HierarchicalOptions
 	std::string resultCsv = "hierarchical_result.csv";
 };
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
 //  HierarchicalClassifier
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
 
 class HierarchicalClassifier
 {
@@ -104,7 +104,7 @@ public:
 
 	std::map<std::string, std::string> codeToGroup;		// species code -> group code
 
-	// â”€â”€â”€ Train â”€â”€â”€
+	// ¦¡¦¡¦¡ Train ¦¡¦¡¦¡
 	void train(ExtractionResult& features, const HierarchicalOptions& opts = HierarchicalOptions())
 	{
 		std::cout << "========================================\n";
@@ -127,9 +127,9 @@ public:
 
 		std::cout << "  Training pool (edge >= " << opts.minEdgeDist << "m): " << trainPool.size() << "\n\n";
 
-		// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+		// ====================================
 		 //  Level 1: Group classification
-		 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+		 // ====================================
 		std::cout << "=== Level 1: Group Classification ===\n";
 		std::cout << "  Conifer / Deciduous / Evergreen / Non-forest\n\n";
 	
@@ -186,9 +186,9 @@ public:
 			}
 		}
 	
-		// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+		// ====================================
 		//  Level 2: Conifer detail
-		// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+		// ====================================
 		std::cout << "\n=== Level 2a: Conifer Species ===\n";
 
 		ExtractionResult coniferFeatures = features;
@@ -227,9 +227,9 @@ public:
 			std::cout << "  Skipped: too few conifer samples (" << coniferFeatures.train.size() << ")\n";
 		}
 	
-		// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+		// ====================================
 		//  Level 2: Deciduous detail
-		// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+		// ====================================
 		std::cout << "\n=== Level 2b: Deciduous Species ===\n";
 
 		ExtractionResult deciduousFeatures = features;
@@ -268,9 +268,9 @@ public:
 			std::cout << "  Skipped: too few deciduous samples (" << deciduousFeatures.train.size() << ")\n";
 		}
 
-		// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+		// ====================================
 		//  Level 2: Evergreen broadleaf detail
-		// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+		// ====================================
 		std::cout << "\n=== Level 2c: Evergreen Broadleaf Species ===\n";
 
 		ExtractionResult evergreenFeatures = features;
@@ -309,9 +309,9 @@ public:
 			std::cout << "  Skipped: too few evergreen samples (" << evergreenFeatures.train.size() << ")\n";
 		}
 	
-		// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+		// ====================================
 		//  Level 2: Non-forest detail
-		// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+		// ====================================
 		std::cout << "\n=== Level 2d: Non-forest Detail ===\n";
 
 		ExtractionResult nonForestFeatures = features;
@@ -351,7 +351,7 @@ public:
 		}
 }
 
-	// â”€â”€â”€ Predict â”€â”€â”€
+	// ¦¡¦¡¦¡ Predict ¦¡¦¡¦¡
 	std::vector<HierarchicalResult> predict(ExtractionResult& features)
 	{
 		std::cout << "\n=== Hierarchical Prediction ===\n";
@@ -524,7 +524,7 @@ public:
 		return results;
 	}
 
-	// â”€â”€â”€ Evaluate â”€â”€â”€
+	// ¦¡¦¡¦¡ Evaluate ¦¡¦¡¦¡
 	static void evaluate(const std::vector<HierarchicalResult>& results)
 	{
 		std::cout << "\n=== Hierarchical Evaluation ===\n";
@@ -639,7 +639,7 @@ public:
 		std::cout << "  Right group, wrong species : " << groupRight_speciesWrong << "\n";
 		std::cout << "  Correct species            : " << sCorrect << "\n";
 
-		// â”€â”€â”€ Accuracy by distance to polygon edge â”€â”€â”€
+		// ¦¡¦¡¦¡ Accuracy by distance to polygon edge ¦¡¦¡¦¡
 		std::cout << "\n  --- Accuracy by Distance to Edge ---\n";
 
 		struct DistBand
@@ -734,7 +734,7 @@ public:
 				<< (100.0 * sCorrect / sTotal) << "%\n";
 		}
 	
-		// â”€â”€â”€ Confidence-based label correction for edge trees â”€â”€â”€
+		// ¦¡¦¡¦¡ Confidence-based label correction for edge trees ¦¡¦¡¦¡
 		// For trees < 10m from edge: if model confidence is high,
 		// trust the model prediction over the forest map label
 		std::cout << "\n  --- Label Correction Analysis (< 10m trees) ---\n";
@@ -772,13 +772,13 @@ public:
 			{
 				// For each edge tree:
 				//   if model confidence >= threshold AND prediction != label
-				//     â†’ assume model is correct (label was wrong)
+				//     ¡æ assume model is correct (label was wrong)
 				//   if model confidence < threshold AND prediction != label
-				//     â†’ mark as "uncertain"
+				//     ¡æ mark as "uncertain"
 
-				int corrected = 0;			// mismatch + high conf â†’ trust model
-				int uncertain = 0;			// mismatch + low conf â†’ unknown
-				int kept = 0;					// match â†’ already correct
+				int corrected = 0;			// mismatch + high conf ¡æ trust model
+				int uncertain = 0;			// mismatch + low conf ¡æ unknown
+				int kept = 0;					// match ¡æ already correct
 
 				for (auto& r : results)
 				{
@@ -799,7 +799,7 @@ public:
 					else
 					{
 						// Model and label disagree
-						// Use combined confidence (group Ã— species)
+						// Use combined confidence (group ¡¿ species)
 						float conf = r.combinedConfidence;
 
 						if (conf >= thresh)
@@ -853,7 +853,7 @@ public:
 					}
 					else if (r.combinedConfidence >= thresh)
 					{
-						// Trust model â†’ count as correct
+						// Trust model ¡æ count as correct
 
 						++totalResolved;
 						++totalEval;
@@ -868,7 +868,7 @@ public:
 				std::cout << "  Conf >= " << (int)(thresh * 100) << "%: " << std::fixed << std::setprecision(1) << combinedAcc << "% (" << totalResolved << "/" << totalEval << ")\n";
 			}
 		
-			// â”€â”€â”€ Predicted species distribution for unlabeled trees â”€â”€â”€
+			// ¦¡¦¡¦¡ Predicted species distribution for unlabeled trees ¦¡¦¡¦¡
 			std::cout << "\n  --- Predicted Species (Outside Forest Map) ---\n"; 
 
 			std::map<std::string, int> unlabeledByCode;
@@ -936,7 +936,7 @@ public:
 
 
 
-	// â”€â”€â”€ Save results CSV â”€â”€â”€
+	// ¦¡¦¡¦¡ Save results CSV ¦¡¦¡¦¡
 	static void saveResults(const std::vector<HierarchicalResult>& results, const std::string& path)
 	{
 		std::ofstream out(path);
@@ -974,7 +974,7 @@ private:
 	bool hasEvergreenClf_ = false;
 	bool hasNonForestClf_ = false;
 
-	// â”€â”€â”€ Self-training: remove likely mislabeled trees â”€â”€â”€
+	// ¦¡¦¡¦¡ Self-training: remove likely mislabeled trees ¦¡¦¡¦¡
 	// Train a model, predict on training data, remove trees where
 	// model disagrees with label. Repeat for maxIter rounds.
 	static std::vector<TreeFeature*> selfTrainPool(

@@ -504,15 +504,15 @@ public:
 	static void printTable(const std::vector<Report>& reports)
 	{
 		std::cout << "\n  ================================ Variant summary ================================\n";
-		std::cout << "  " << std::left << std::setw(34) << "config"
+		std::cout << "  " << std::left << std::setw(44) << "config"
 			<< std::right << std::setw(6) << "dim"
 			<< std::setw(9) << "LOCO" << std::setw(9) << "+-" << std::setw(9) << "pooled"
 			<< std::setw(9) << "group" << std::setw(9) << "random" << std::setw(9) << "infl" << "\n";
-		std::cout << "  " << std::string(94, '-') << "\n";
+		std::cout << "  " << std::string(104, '-') << "\n";
 
 		for (auto& r : reports)
 		{
-			std::cout << "  " << std::left << std::setw(34) << r.config.substr(0, 33)
+			std::cout << "  " << std::left << std::setw(44) << r.config.substr(0, 43)
 				<< std::right << std::setw(6) << r.nFeaturesUsed
 				<< std::fixed << std::setprecision(1)
 				<< std::setw(8) << r.locoMean << "%"
@@ -540,7 +540,7 @@ public:
 			std::cout << "\n";
 		}
 
-		std::cout << "  " << std::string(94, '-') << "\n";
+		std::cout << "  " << std::string(104, '-') << "\n";
 	}
 
 	// Side-by-side comparison of two reports (e.g. Handcrafted vs Dino)
