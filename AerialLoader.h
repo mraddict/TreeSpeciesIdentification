@@ -5,6 +5,7 @@
 struct AerialPhoto
 {
 	cv::Mat image;
+	double loadScale = 1.0;			// image size / file size (load(path, scale))
 
 	// 지리 참조 정보 (GeoTransform 6개 파라미터)
 	double originX = 0;					// 좌상단 X 좌표
@@ -41,7 +42,7 @@ class AerialLoader
 public:
 
 	// ─── GeoTIFF loading (image + metadata) ───
-	static AerialPhoto load(const std::string& path)
+	static AerialPhoto load(const std::string& path, double scale = 1.0)
 	{
 		// Enable GDAL error reporting
 		CPLSetErrorHandler(CPLQuietErrorHandler);
@@ -132,7 +133,14 @@ public:
 		}
 
 		// 이미지 데이터를 OpenCV Mat으로 변환
-		photo.image = readImageData(pDS, photo);
+		if ((scale > 0.0) && (scale < 1.0))
+		{
+			photo.image = readImageDataScaled(pDS, photo, scale);
+		}
+		else
+		{
+			photo.image = readImageData(pDS, photo);
+		}
 
 		return photo;
 	}
@@ -356,6 +364,57 @@ private:
 		}
 	}
 
+	// Downscaled read straight from GDAL (overviews if present, otherwise block averaging).
+	// The photo's size and pixel size are updated to the scaled grid, so its GeoTransform matches the returned image.
+	static cv::Mat readImageDataScaled(GDALDataset* pDS, AerialPhoto& photo, double scale)
+	{
+		int W = photo.width;
+		int H = photo.height;
+		int w = std::max(1, (int)std::lround(W * scale));
+		int h = std::max(1, (int)std::lround(H * scale));
+
+		std::cout << "  Loading image: " << W << "x" << H << " -> " << w << "x" << h << " (scale " << scale << ")...\n";
+
+		GDALRasterIOExtraArg arg;
+		INIT_RASTERIO_EXTRA_ARG(arg);
+		arg.eResampleAlg = GRIORA_Average;
+
+		cv::Mat bgr(h, w, CV_8UC3);
+		CPLErr err = CE_None;
+
+		if (photo.bands >= 3)
+		{
+			int gdalBands[3] = { 3, 2, 1 };		// B, G, R order
+
+			err = pDS->RasterIO(GF_Read, 0, 0, W, H, bgr.data, w, h, GDT_Byte, 3, gdalBands, 3, (GSpacing)w * 3, 1, &arg);
+		}
+		else
+		{
+			cv::Mat gray(h, w, CV_8UC1);
+
+			err = pDS->GetRasterBand(1)->RasterIO(GF_Read, 0, 0, W, H, gray.data, w, h, GDT_Byte, 0, 0, &arg);
+			cv::cvtColor(gray, bgr, cv::COLOR_GRAY2BGR);
+		}
+
+		if (err != CE_None)
+		{
+			throw std::runtime_error("Scaled RasterIO failed");
+		}
+
+		double sx = (double)W / w;
+		double sy = (double)H / h;
+
+		photo.pixelW *= sx;
+		photo.rotationY *= sx;
+		photo.rotationX *= sy;
+		photo.pixelH *= sy;
+		photo.width = w;
+		photo.height = h;
+		photo.resolution = photo.pixelW;
+		photo.loadScale = (double)w / W;
+
+		return bgr;
+	}
 	// 이미지 데이터 읽기 → OpenCV BGR Mat
 	static cv::Mat readImageData(GDALDataset* pDS, const AerialPhoto& photo)
 	{

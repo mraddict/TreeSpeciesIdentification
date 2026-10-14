@@ -28,6 +28,7 @@
 #include "CourseCrossValidator.h"
 #include "CourseDataSetLoader.h"
 #include "OverlayRenderer.h"
+#include "TreeEditor.h"
 
 #include <unordered_map>
 #include <unordered_set>
@@ -565,6 +566,9 @@ int runExport(const std::string& configPath, const std::string& outDir, const st
 	std::string courseDir = TSICommon::join(outDir, courseName);
 	TSICommon::mkdirs(courseDir);
 
+	// Trees deleted in the editor (--experiment edit)
+	std::unordered_set<long long> excludedIds = TreeEditor::loadExcludedIds(TSICommon::join(courseDir, "excluded_ids.csv"));
+
 	std::string jsonPath = TSICommon::join(courseDir, "trees.json");
 	std::ofstream ofs(jsonPath, std::ios::binary);
 
@@ -577,9 +581,17 @@ int runExport(const std::string& configPath, const std::string& outDir, const st
 
 	int written = 0;
 	int noEmbedding = 0;
+	int excludedByEditor = 0;
 
 	for (auto* tp : inside)
 	{
+		if (excludedIds.count(tp->treeId))
+		{
+			++excludedByEditor;
+
+			continue;
+		}
+
 		auto it = embeddings.find(tp->treeId + course->treeIdOffset);
 
 		if (it == embeddings.end())
@@ -615,6 +627,7 @@ int runExport(const std::string& configPath, const std::string& outDir, const st
 	ofs.close();
 
 	std::cout << "  Written: " << written << " trees -> " << jsonPath << "\n";
+	std::cout << "  Excluded by editor (excluded_ids.csv): " << excludedByEditor << "\n";
 
 	if (useBoundary)
 	{
@@ -1025,6 +1038,47 @@ int runRender(const std::string& configPath, const std::string& outDir, const st
 
 		std::cout << "  Saved: " << path << " (" << r.width << "x" << r.height << " at px " << r.x << "," << r.y << ", trees.json trees: " << inTile << ")\n";
 	}
+
+	return 0;
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------
+//  edit : keep/delete editor for <out_dir>/<course>/trees.json on a 1/4 aerial photo (TreeEditor / ImageViewer)
+//    S saves <out_dir>/<course>/excluded_ids.csv, which export skips on the next run.
+// ----------------------------------------------------------------------------------------------------------------------------
+
+static const double kEditImageScale = 0.25;
+
+int runEdit(const std::string& configPath, const std::string& outDir, const std::string& courseName)
+{
+	CourseDataSetConfig cfg = CourseDataSetConfigLoader::load(configPath);
+	const CourseDataSet& course = findCourse(cfg, courseName);
+
+	std::string courseDir = TSICommon::join(outDir, courseName);
+
+	std::cout << "=== Edit: " << courseName << " ===\n";
+
+	std::vector<TreePoint> trees = loadExportedTrees(TSICommon::join(courseDir, "trees.json"));
+	AerialPhoto aerial = AerialLoader::load(course.aerialImgPath, kEditImageScale);
+
+	if ((aerial.epsg > 0) && (aerial.epsg != kExportEpsg))
+	{
+		OGRCoordinateTransformation* ct = CoordTransformer::createTransform(kExportEpsg, aerial.epsg);
+
+		if (!ct)
+		{
+			throw std::runtime_error("Failed to create transform EPSG:" + std::to_string(kExportEpsg) + " -> EPSG:" + std::to_string(aerial.epsg));
+		}
+
+		for (auto& tp : trees)
+		{
+			ct->Transform(1, &tp.x, &tp.y);
+		}
+
+		OGRCoordinateTransformation::DestroyCT(ct);
+	}
+
+	TreeEditor::run(aerial, trees, TSICommon::join(courseDir, "excluded_ids.csv"), "TSI Tree Editor - " + courseName);
 
 	return 0;
 }

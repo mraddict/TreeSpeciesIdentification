@@ -265,6 +265,7 @@ int runSweep(const std::string& outDir);
 int runLidar(const std::string& outDir);
 int runExport(const std::string& configPath, const std::string& outDir, const std::string& courseName);
 int runRender(const std::string& configPath, const std::string& outDir, const std::string& courseName, bool skipForest);
+int runEdit(const std::string& configPath, const std::string& outDir, const std::string& courseName);
 
 void printUsage(const char* prog)
 {
@@ -353,6 +354,27 @@ int main(int argc, char** argv)
 
  	TSICommon::initialize();
 	ForestCommon::initialize();
+
+	if (experiment && (std::string(argv[2]) == "edit"))
+	{
+		if (argc < 6)
+		{
+			std::cerr << "edit needs <courses_dataset.json> <out_dir> <course>\n";
+
+			return 1;
+		}
+
+		try
+		{
+			return runEdit(argv[3], argv[4], argv[5]);
+		}
+		catch (const std::exception& e)
+		{
+			std::cerr << "ERROR: " << e.what() << "\n";
+
+			return 2;
+		}
+	}
 
 	if (experiment && (std::string(argv[2]) == "render"))
 	{

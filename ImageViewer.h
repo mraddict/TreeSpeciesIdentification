@@ -2,9 +2,19 @@
 
 #include "TSICommon.h"
 
+#include <functional>
+
 class ImageViewer
 {
 public:
+
+	// Current view: canvas = pan + imagePx * zoom
+	struct View
+	{
+		double zoom;
+		double panX;
+		double panY;
+	};
 
 	struct Options
 	{
@@ -21,6 +31,13 @@ public:
 		double geoMinY = 0.0;
 		double geoMaxY = 0.0;
 		double meterPerPixel = 1.0;
+
+		// Hooks for tools built on the viewer (all optional)
+		std::function<void(cv::Mat& canvas, const View& view)> drawOverlay;							// drawn after the image, before the info text
+		std::function<bool(int event, int x, int y, int flags, const View& view)> onMouse;		// true = consumed (no pan)
+		std::function<bool(int keyEx)> onKey;																	// waitKeyEx code; true = consumed
+		std::string hint = "R:reset  S:save  ESC:quit";
+		bool printControls = true;
 	};
 
 	static void show(const cv::Mat& img, const Options& opt = {})
@@ -47,24 +64,39 @@ public:
 		cv::resizeWindow(opt.title, opt.windowW, opt.windowH);
 		cv::setMouseCallback(opt.title, onMouse, &s);
 
-		std::cout << "=== 뷰어 조작법 ===\n"
-			<< "  마우스 휠     : 줌 인/아웃 (마우스 위치 기준)\n"
-			<< "  좌클릭 드래그 : 패닝\n"
-			<< "  R             : 초기 뷰 리셋\n"
-			<< "  S             : 현재 화면 저장\n"
-			<< "  ESC / Q       : 종료\n"
-			<< "  이미지 크기   : " << img.cols << " x " << img.rows << " px\n";
+		if (opt.printControls)
+		{
+			std::cout << "=== 뷰어 조작법 ===\n"
+				<< "  마우스 휠     : 줌 인/아웃 (마우스 위치 기준)\n"
+				<< "  좌클릭 드래그 : 패닝\n"
+				<< "  R             : 초기 뷰 리셋\n"
+				<< "  S             : 현재 화면 저장\n"
+				<< "  ESC / Q       : 종료\n"
+				<< "  이미지 크기   : " << img.cols << " x " << img.rows << " px\n";
+		}
 
 		while (true)
 		{
 			cv::Mat canvas(opt.windowH, opt.windowW, CV_8UC3, cv::Scalar(30, 30, 30));
 
 			drawImage(canvas, s);
+
+			if (opt.drawOverlay)
+			{
+				opt.drawOverlay(canvas, View{ s.zoom, s.panX, s.panY });
+			}
 			drawInfo(canvas, s);
 
 			cv::imshow(opt.title, canvas);
 
-			int key = cv::waitKey(16) & 0xFF;
+			int keyEx = cv::waitKeyEx(16);
+
+			if ((keyEx != -1) && opt.onKey && opt.onKey(keyEx))
+			{
+				continue;
+			}
+
+			int key = keyEx & 0xFF;
 
 			if ((key == 27) || (key == 'q') || (key == 'Q'))
 			{
@@ -192,7 +224,7 @@ private:
 		}
 
 		// 조작법 힌트
-		cv::putText(canvas, "R:reset  S:save  ESC:quit", { 10, canvas.rows - 10 }, cv::FONT_HERSHEY_SIMPLEX, 0.45, { 120, 120, 120 }, 1, cv::LINE_AA);
+		cv::putText(canvas, s.opt.hint, { 10, canvas.rows - 10 }, cv::FONT_HERSHEY_SIMPLEX, 0.45, { 120, 120, 120 }, 1, cv::LINE_AA);
 	}
 
 	static void onMouse(int event, int x, int y, int flags, void* userData)
@@ -200,6 +232,11 @@ private:
 		ViewerState* s = (ViewerState*)userData;
 		s->mouseX = x;
 		s->mouseY = y;
+
+		if (s->opt.onMouse && s->opt.onMouse(event, x, y, flags, View{ s->zoom, s->panX, s->panY }))
+		{
+			return;
+		}
 
 		//std::cout << "event=" << event << " flags=" << flags << "\n";
 
