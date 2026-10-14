@@ -263,6 +263,7 @@ int runExtract(std::vector<LabeledTree>& labeled, const std::string& outDir, con
 int runEval(const std::string& outDir);
 int runSweep(const std::string& outDir);
 int runLidar(const std::string& outDir);
+int runExport(const std::string& configPath, const std::string& outDir, const std::string& courseName);
 
 void printUsage(const char* prog)
 {
@@ -351,6 +352,27 @@ int main(int argc, char** argv)
 
  	TSICommon::initialize();
 	ForestCommon::initialize();
+
+	if (experiment && (std::string(argv[2]) == "export"))
+	{
+		if (argc < 6)
+		{
+			std::cerr << "export needs <courses_dataset.json> <out_dir> <course>\n";
+
+			return 1;
+		}
+
+		try
+		{
+			return runExport(argv[3], argv[4], argv[5]);
+		}
+		catch (const std::exception& e)
+		{
+			std::cerr << "ERROR: " << e.what() << "\n";
+
+			return 2;
+		}
+	}
 	
 	//reprojectAerialPhoto("../../Resources/Diamond/DiamondCC_Orthomosic_BackGround.tif", "../../Resources/Diamond/DiamondCC_orthomosaic_5179_05cm.tif");
 

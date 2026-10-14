@@ -9,6 +9,7 @@ struct CourseDataSet
 	// 파일 경로
 	std::vector<std::string> shpFiles;		// 임상도 SHP 파일 목록
 	std::string aerialImgPath;					// 항공사진 정사영상 경로 (.tif/.tiff)
+	std::string boundaryPath;					// course boundary SHP (config: courseBoundary)
 	std::string treeInfoPath;					// 나무 위치 CSV 경로
 
 	// 좌표계 정보
@@ -187,6 +188,7 @@ public:
 		c.shpFiles = TSICommon::extractStringArray(obj, "shp_files");
 		c.aerialImgPath = TSICommon::extractString(obj, "aerial_img");
 		c.treeInfoPath = TSICommon::extractString(obj, "tree_info");
+		c.boundaryPath = TSICommon::extractString(obj, "courseBoundary");
 		c.treeSrcEPSG = (int)TSICommon::extractNumber(obj, "tree_source_epsg", 5179);
 		c.targetEPSG = (int)TSICommon::extractNumber(obj, "target_epsg", 5179);
 		c.crownPadding = TSICommon::extractNumber(obj, "padding", 1.4);

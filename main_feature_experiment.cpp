@@ -26,6 +26,10 @@
 #include "FeatureExtractor.h"
 #include "Hierarchicalclassifier.h"
 #include "CourseCrossValidator.h"
+#include "CourseDataSetLoader.h"
+
+#include <unordered_map>
+#include <unordered_set>
 
 // Adapt this to your pipeline 
 //  Must return LabeledTree for ALL courses merged, with cropValid/imageUsable/
@@ -275,9 +279,360 @@ int runLidar(const std::string& outDir)
 	return 0;
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------
+//  export : trees inside the course -> <out_dir>/<course>/trees.json
+//    id (TreeID in tree_info CSV), x, y (EPSG:5179), height, crownD,
+//    embedding[384] (from <out_dir>/features_dino.csv), suggested = null, confidence = 0
+//  Course interior:
+//    courseBoundary set   : inside the boundary SHP polygons
+//    courseBoundary unset : InsideForest == N in features_dino.csv (outside every forest polygon)
+//  Trees without an embedding row (crop failed / empty) are skipped and counted.
+// ----------------------------------------------------------------------------------------------------------------------------
+
+static const int kExportEpsg = 5179;
+static const int kExportDinoDim = 384;
+
+static bool insideBoundary(const ForestLayer& boundary, double x, double y)
+{
+	OGRPoint pt(x, y);
+
+	for (auto& ft : boundary.features)
+	{
+		if (!ft.geometry)
+		{
+			continue;
+		}
+
+		OGREnvelope env;
+		ft.geometry->getEnvelope(&env);
+
+		if ((x < env.MinX) || (x > env.MaxX) || (y < env.MinY) || (y > env.MaxY))
+		{
+			continue;
+		}
+
+		if (ft.geometry->Contains(&pt))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+// dino_0 .. dino_383 of the wanted TreeIDs (global, offset applied), kept as the CSV text
+//  outsideForestOnly : keep only rows with InsideForest == N
+static std::unordered_map<long long, std::vector<std::string>> loadDinoEmbeddings(const std::string& path, const std::unordered_set<long long>& wanted, const std::string& courseName, bool outsideForestOnly, int& wrongCourse)
+{
+	std::ifstream file(path);
+
+	if (!file.is_open())
+	{
+		throw std::runtime_error("Failed to open feature CSV: " + path);
+	}
+
+	std::string line;
+
+	if (!std::getline(file, line))
+	{
+		throw std::runtime_error("Feature CSV is empty: " + path);
+	}
+
+	if (!line.empty() && line.back() == '\r')
+	{
+		line.pop_back();
+	}
+
+	std::vector<std::string> header = TSICommon::split(line);
+
+	int first = -1;
+	int dim = 0;
+
+	for (int i = 0 ; i < (int)header.size() ; ++i)
+	{
+		if (header[i] == "dino_0")
+		{
+			first = i;
+
+			while ((first + dim < (int)header.size()) && (header[first + dim] == "dino_" + std::to_string(dim)))
+			{
+				++dim;
+			}
+
+			break;
+		}
+	}
+
+	if (dim != kExportDinoDim)
+	{
+		throw std::runtime_error("Expected " + std::to_string(kExportDinoDim) + " dino_* columns, found " + std::to_string(dim) + ": " + path);
+	}
+
+	const int kInsideForestCol = 1;
+	const int kImagePathCol = 4;
+	const std::string courseDir = "/" + courseName + "/";
+
+	std::unordered_map<long long, std::vector<std::string>> result;
+	wrongCourse = 0;
+
+	while (std::getline(file, line))
+	{
+		size_t comma = line.find(',');
+
+		if (comma == std::string::npos)
+		{
+			continue;
+		}
+
+		long long id = -1;
+
+		try { id = std::stoll(line.substr(0, comma)); }
+		catch (...) { continue; }
+
+		if (!wanted.count(id))
+		{
+			continue;
+		}
+
+		if (!line.empty() && line.back() == '\r')
+		{
+			line.pop_back();
+		}
+
+		std::vector<std::string> cols = TSICommon::split(line);
+
+		if ((int)cols.size() < first + dim)
+		{
+			continue;
+		}
+
+		// TreeID offsets follow the course order in the config; the crop path tells which course the row really is
+		if (cols[kImagePathCol].find(courseDir) == std::string::npos)
+		{
+			++wrongCourse;
+
+			continue;
+		}
+
+		if (outsideForestOnly && (cols[kInsideForestCol] != "N"))
+		{
+			continue;
+		}
+
+		std::vector<std::string> emb(cols.begin() + first, cols.begin() + first + dim);
+		bool ok = true;
+
+		for (auto& v : emb)
+		{
+			try
+			{
+				if (!std::isfinite(std::stof(v)))
+				{
+					ok = false;
+				}
+			}
+			catch (...)
+			{
+				ok = false;
+			}
+
+			if (!ok)
+			{
+				break;
+			}
+		}
+
+		if (ok)
+		{
+			result[id] = std::move(emb);
+		}
+	}
+
+	return result;
+}
+
+int runExport(const std::string& configPath, const std::string& outDir, const std::string& courseName)
+{
+	CourseDataSetConfig cfg = CourseDataSetConfigLoader::load(configPath);
+
+	const CourseDataSet* course = nullptr;
+
+	for (auto& c : cfg.courses)
+	{
+		if (c.courseName == courseName)
+		{
+			course = &c;
+
+			break;
+		}
+	}
+
+	if (!course)
+	{
+		throw std::runtime_error("Course not found in config: " + courseName);
+	}
+
+	bool useBoundary = !course->boundaryPath.empty();
+
+	std::cout << "=== Export: " << courseName << " ===\n";
+
+	if (!useBoundary)
+	{
+		std::cout << "  ! 'courseBoundary' is not set - trees with InsideForest == N are taken as the course interior\n";
+	}
+
+	// 1. Trees in EPSG:5179 (TreeID without course offset)
+	TreeData trees = TreeLoader::load(course->treeInfoPath, course->treeSrcEPSG, kExportEpsg);
+
+	// 2. Candidates: inside the boundary, or every tree (filtered by InsideForest in step 3)
+	std::vector<const TreePoint*> inside;
+
+	if (useBoundary)
+	{
+		ForestLayer boundary = ForestLoader::load(course->boundaryPath);
+
+		int boundaryEpsg = boundary.epsg;
+
+		if (boundaryEpsg <= 0)
+		{
+			std::cout << "  ! Boundary CRS unknown, assuming EPSG:" << kExportEpsg << "\n";
+
+			boundaryEpsg = kExportEpsg;
+		}
+
+		OGRCoordinateTransformation* toBoundaryCT = nullptr;
+
+		if (boundaryEpsg != kExportEpsg)
+		{
+			toBoundaryCT = CoordTransformer::createTransform(kExportEpsg, boundaryEpsg);
+
+			if (!toBoundaryCT)
+			{
+				ForestLoader::release(boundary);
+
+				throw std::runtime_error("Failed to create transform EPSG:" + std::to_string(kExportEpsg) + " -> EPSG:" + std::to_string(boundaryEpsg));
+			}
+		}
+
+		for (auto& tp : trees.tps)
+		{
+			double bx = tp.x;
+			double by = tp.y;
+
+			if (toBoundaryCT)
+			{
+				toBoundaryCT->Transform(1, &bx, &by);
+			}
+
+			if (insideBoundary(boundary, bx, by))
+			{
+				inside.push_back(&tp);
+			}
+		}
+
+		OGRCoordinateTransformation::DestroyCT(toBoundaryCT);
+		ForestLoader::release(boundary);
+
+		std::cout << "  Interior criterion: boundary SHP " << course->boundaryPath << " (EPSG:" << boundaryEpsg << ")\n";
+		std::cout << "  Trees inside boundary: " << inside.size() << " / " << trees.tps.size() << "\n";
+	}
+	else
+	{
+		for (auto& tp : trees.tps)
+		{
+			inside.push_back(&tp);
+		}
+
+		std::cout << "  Interior criterion: InsideForest == N in features_dino.csv (no courseBoundary)\n";
+	}
+
+	// 3. Embeddings
+	std::unordered_set<long long> wanted;
+
+	for (auto* tp : inside)
+	{
+		wanted.insert(tp->treeId + course->treeIdOffset);
+	}
+
+	int wrongCourse = 0;
+	auto embeddings = loadDinoEmbeddings(TSICommon::join(outDir, "features_dino.csv"), wanted, courseName, !useBoundary, wrongCourse);
+
+	if (wrongCourse > 0)
+	{
+		std::cout << "  ! " << wrongCourse << " embedding rows belong to another course (TreeID offset / course order mismatch) - ignored\n";
+	}
+
+	// 4. trees.json
+	std::string courseDir = TSICommon::join(outDir, courseName);
+	TSICommon::mkdirs(courseDir);
+
+	std::string jsonPath = TSICommon::join(courseDir, "trees.json");
+	std::ofstream ofs(jsonPath, std::ios::binary);
+
+	if (!ofs.is_open())
+	{
+		throw std::runtime_error("Failed to create: " + jsonPath);
+	}
+
+	ofs << std::fixed << "[\n";
+
+	int written = 0;
+	int noEmbedding = 0;
+
+	for (auto* tp : inside)
+	{
+		auto it = embeddings.find(tp->treeId + course->treeIdOffset);
+
+		if (it == embeddings.end())
+		{
+			++noEmbedding;
+
+			continue;
+		}
+
+		if (written > 0)
+		{
+			ofs << ",\n";
+		}
+
+		ofs << "  {\"id\": " << tp->treeId
+			<< ", \"x\": " << std::setprecision(3) << tp->x
+			<< ", \"y\": " << tp->y
+			<< ", \"height\": " << std::setprecision(2) << tp->height
+			<< ", \"crownD\": " << tp->crownD
+			<< ", \"embedding\": [";
+
+		for (size_t i = 0 ; i < it->second.size() ; ++i)
+		{
+			ofs << (i ? "," : "") << it->second[i];
+		}
+
+		ofs << "], \"suggested\": null, \"confidence\": 0}";
+
+		++written;
+	}
+
+	ofs << "\n]\n";
+	ofs.close();
+
+	std::cout << "  Written: " << written << " trees -> " << jsonPath << "\n";
+
+	if (useBoundary)
+	{
+		std::cout << "  Skipped (no embedding): " << noEmbedding << "\n";
+	}
+	else
+	{
+		std::cout << "  Not exported (InsideForest == Y or no embedding): " << noEmbedding << "\n";
+	}
+
+	return 0;
+}
+
 // TreeSpeciesIdentification.exe                                    ← 기존 파이프라인
 // TreeSpeciesIdentification.exe experiment extract <입력> out\ models\dinov2_vits14.onnx
 // TreeSpeciesIdentification.exe experiment eval out\
+// TreeSpeciesIdentification.exe --experiment export ..\..\Resources\courses_dataset.json out\ Hwarang
 
 int runFeatureExperiment(int argc, char** argv)
 {
