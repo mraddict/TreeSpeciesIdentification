@@ -21,7 +21,7 @@
 #include "CourseCrossValidator.h"
 #include "DinoEmbedder.h"
 
-// ─── Merge features from multiple courses ───
+// Merge features from multiple courses 
 // normalizePhoto: true이면 항공사진 기반 특징(0~16)을 코스별 z-score 정규화
 ExtractionResult mergeFeatures_old(const std::vector<ExtractionResult>& perCourse, const std::vector<CourseDataSet>& courseDSs)
 {
@@ -58,7 +58,7 @@ ExtractionResult mergeFeatures(const std::vector<ExtractionResult>& perCourse, b
 	const int PHOTO_FEATURES = 17;
 	ExtractionResult merged;
 
-	// ── 공통 수종 찾기 (모든 코스의 학습 풀에 존재하는 수종) ──
+	// 공통 수종 찾기 (모든 코스의 학습 풀에 존재하는 수종) 
 	std::set<std::string> commonSpecies;
 
 	if (normalizePhoto && perCourse.size() > 1)
@@ -125,7 +125,7 @@ ExtractionResult mergeFeatures(const std::vector<ExtractionResult>& perCourse, b
 			continue;
 		}
 
-		// ── 코스별 평균/표준편차 계산 (공통 수종의 학습 풀만 대상) ──
+		// 코스별 평균/표준편차 계산 (공통 수종의 학습 풀만 대상) 
 		int nFeat = std::min(PHOTO_FEATURES, (int)feat.all[0].feature.size());
 		std::vector<double> sum(nFeat, 0.0);
 		std::vector<double> sumSq(nFeat, 0.0);
@@ -168,7 +168,7 @@ ExtractionResult mergeFeatures(const std::vector<ExtractionResult>& perCourse, b
 
 		std::cout << "  Course " << c << ": normalization base = " << count << " trees (common species only)\n";
 
-		// ── 정규화 적용하여 복사 ──
+		// 정규화 적용하여 복사 
 		for (auto& tf : feat.all)
 		{
 			TreeFeature copy = tf;
@@ -199,7 +199,7 @@ ExtractionResult mergeFeatures(const std::vector<ExtractionResult>& perCourse, b
 	return merged;
 }
 
-// ─── Save merged features CSV with CourseID column ───
+// Save merged features CSV with CourseID column 
 void saveMergedCSV(const std::vector<ExtractionResult>& perCourse, const std::vector<CourseDataSet>& courseDSs, const std::string& path)
 {
 	std::ofstream out(path);
@@ -261,6 +261,8 @@ void reprojectAerialPhoto(const std::string& srcPath, const std::string& dstPath
 int runFeatureExperiment(int argc, char** argv);
 int runExtract(std::vector<LabeledTree>& labeled, const std::string& outDir, const std::string& onnxPath);
 int runEval(const std::string& outDir);
+int runSweep(const std::string& outDir);
+int runLidar(const std::string& outDir);
 
 void printUsage(const char* prog)
 {
@@ -300,6 +302,8 @@ int main(int argc, char** argv)
 
 	bool resumeFeature = false;
 	bool experiment = false;
+	bool isSweepMethod = false;
+	bool isLidarMethod = false;
 
 	std::string courseDataSetConfigFilename = "../../Resources/courses_dataset_old.json";
 	int argIdx = 1;
@@ -319,14 +323,23 @@ int main(int argc, char** argv)
 	else 	if (std::string(argv[1]) == "--experiment" && argc >= 2)
 	{
 		experiment = true;
+		resumeFeature = false;
 
 		if (std::string(argv[2]) == "eval")
 		{
 			resumeFeature = true;
 		}
-		else
+
+		if (std::string(argv[2]) == "sweep")
 		{
-			resumeFeature = false;
+			resumeFeature = true;
+			isSweepMethod = true;
+		}
+
+		if (std::string(argv[2]) == "lidar")
+		{
+			resumeFeature = true;
+			isLidarMethod = true;
 		}
 	}
 	else
@@ -413,6 +426,15 @@ int main(int argc, char** argv)
 
 			if (experiment)
 			{
+				if (isSweepMethod)
+				{
+					return runSweep(argv[3]);
+				}
+				else if (isLidarMethod)
+				{
+					return runLidar(argv[3]);
+				}
+
 				return runEval(argv[3]);
 			}
 
@@ -420,7 +442,7 @@ int main(int argc, char** argv)
 		}
 		else
 		{
-			// ─── Full pipeline: process each course ───
+			// Full pipeline: process each course 
 			
 			outputDir = courseDSConfig.outputDir;
 
@@ -581,7 +603,7 @@ int main(int argc, char** argv)
 		// Save
 		HierarchicalClassifier::saveResults(results, hOpts.resultCsv);
 		
-		// ─── Per-course overlay ───
+		// Per-course overlay 
 		if (saveOverlay && !perCourseAerial.empty())
 		{
 			std::cout << "\n=== Rendering overlays per course ===\n";

@@ -119,7 +119,7 @@ struct TreeFeature
 	std::string imagePath;					// saved crop image path
 	std::vector<float> feature;			// feature vector
 
-	static const int kLidarCount = 0;
+	static const int kLidarCount = 8;
 
 	// Feature names for the ACTIVE layout (set by FeatureExtractor::configure / loadCSV)
 	static const std::vector<std::string>& featureNames()

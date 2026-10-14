@@ -1,5 +1,5 @@
 
-// 式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式
+// ----------------------------------------------------------------------------------------------------------------------------
 //  main_feature_experiment.cpp
 //  Handcrafted(25) vs DINOv2(+LiDAR) feature comparison
 //  with leave-one-course-out evaluation.
@@ -18,7 +18,7 @@
 //  <labeled_input> is whatever your current pipeline uses to produce the
 //  std::vector<LabeledTree> for all 6 courses merged (TreeID offsets applied).
 //  Adapt loadAllLabeledTrees() below to your existing loader calls.
-// 式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式
+// ----------------------------------------------------------------------------------------------------------------------------
 
 #include "TSICommon.h"
 #include "OutputLogger.h"
@@ -27,7 +27,7 @@
 #include "Hierarchicalclassifier.h"
 #include "CourseCrossValidator.h"
 
-// 式式式 Adapt this to your pipeline 式式式
+// Adapt this to your pipeline 
 //  Must return LabeledTree for ALL courses merged, with cropValid/imageUsable/
 //  imagePath filled (i.e. crops already saved to disk) and TreeID offsets applied.
 static std::vector<LabeledTree> loadAllLabeledTrees(const std::string& input)
@@ -40,7 +40,7 @@ static std::vector<LabeledTree> loadAllLabeledTrees(const std::string& input)
 	throw std::runtime_error("loadAllLabeledTrees(): plug in your existing loader here (" + input + ")");
 }
 
-// 式式式 Optional: species code ⊥ L1 group for group-level accuracy 式式式
+// Optional: species code ⊥ L1 group for group-level accuracy 
 //  Return "C" (conifer) / "B" (broadleaf) / "O" (other) by KOFTR_GROU code.
 //  If you already have this mapping in ForestCommon / HierarchicalClassifier, call that instead.
 static std::string groupOf(const std::string& code)
@@ -111,6 +111,166 @@ int runEval(const std::string& outDir)
 	CourseCrossValidator::print(rb, "DINOv2 + 8 LiDAR");
 
 	CourseCrossValidator::compare(ra, "Handcrafted", rb, "Dino");
+
+	return 0;
+}
+
+int runSweep(const std::string& outDir)
+{
+	auto feats = FeatureExtractor::loadCSV(TSICommon::join(outDir, "features_dino.csv"));
+
+	CourseCrossValidator::Options base;
+	base.rf.maxDepth = 20;
+	base.rf.minSampleCount = 5;
+	base.rf.maxTrees = 200;
+	base.rf.activeVarCount = 0;						// sqrt(nFeats): 5 for 25-dim, ~20 for 392-dim
+	base.courseIdDivisor = 100000;				// TreeLoader offset step
+	base.groupOf = &groupOf;
+	base.runRandomKFold = true;
+
+	std::vector<std::pair<std::string, CourseCrossValidator::Options>> variants;
+
+	// 0. baseline (same as eval)
+	variants.push_back({ "A baseline", base });
+
+	// 1. drop Mixed Forest
+	{
+		auto opts = base;
+		opts.excludeCodes = { "77" };
+		variants.push_back({ "B - 77", opts });
+	}
+
+	// 2. class priors
+	{
+		auto otps = base;
+		otps.excludeCodes = { "77" };
+		otps.classPriors = true;
+		variants.push_back({ "C -77 priors", otps });
+	}
+
+	// 3. PCA 64
+	{
+		auto otps = base;
+		otps.excludeCodes = { "77" };
+		otps.pcaDims = 64;
+		variants.push_back({ "D -77 pca64", otps });
+	}
+
+	// 4. PCA 64 + priors
+	{
+		auto otps = base;
+		otps.excludeCodes = { "77" };
+		otps.pcaDims = 64;
+		otps.classPriors = true;
+		variants.push_back({ "E -77 pca64 priors", otps });
+	}
+
+	// 5. logistic regression on PCA 64
+	{
+		auto otps = base;
+		otps.excludeCodes = { "77" };
+		otps.pcaDims = 64;
+		otps.classifier = CourseCrossValidator::Classifier::Logistic;
+		variants.push_back({ "F -77 pca64 logistic", otps });
+	}
+
+	// 6. GROUP target (C/B) the ceiling for "asset group + confidence"
+	{
+		auto otps = base;
+		otps.target = CourseCrossValidator::Target::Group;
+		otps.excludeCodes = { "77" };
+		variants.push_back({ "G group -77", otps });
+	}
+
+	// 7. GROUP target + PCA 64 + priors
+	{
+		auto otps = base;
+		otps.target = CourseCrossValidator::Target::Group;
+		otps.excludeCodes = { "77" };
+		otps.pcaDims = 64;
+		otps.classPriors = true;
+		variants.push_back({ "H group -77 pca64 priors", otps });
+	}
+
+	std::vector<CourseCrossValidator::Report> reports;
+
+	for (auto& v : variants)
+	{
+		std::cout << "\n############ " << v.first << " ############\n";
+
+		CourseCrossValidator::Report r = CourseCrossValidator::run(feats, v.second);
+		r.config = v.first + "  [" + r.config + "]";
+		CourseCrossValidator::print(r);
+
+		reports.push_back(std::move(r));
+	}
+
+	CourseCrossValidator::printTable(reports);
+
+	return 0;
+}
+
+int runLidar(const std::string& outDir)
+{
+	auto feats = FeatureExtractor::loadCSV(TSICommon::join(outDir, "features_dino.csv"));
+
+	CourseCrossValidator::Options base;
+	base.rf.maxDepth = 20;
+	base.rf.minSampleCount = 5;
+	base.rf.maxTrees = 200;
+	base.rf.activeVarCount = 0;						// sqrt(nFeats): 5 for 25-dim, ~20 for 392-dim
+	base.courseIdDivisor = 100000;				// TreeLoader offset step
+	base.groupOf = &groupOf;
+	base.lidarCount = TreeFeature::kLidarCount;
+	base.runRandomKFold = true;
+
+	std::vector<std::pair<std::string, CourseCrossValidator::Options>> variants;
+
+	{
+		auto otps = base;
+		otps.target = CourseCrossValidator::Target::Group;
+		otps.featureSet = CourseCrossValidator::FeatureSet::LidarOnly;
+		otps.rf.activeVarCount = 3;		// sqrt(8)
+		variants.push_back({ "I group lidar-only", otps });
+	}
+
+	{
+		auto otps = base;
+		otps.target = CourseCrossValidator::Target::Group;
+		otps.featureSet = CourseCrossValidator::FeatureSet::PcaImagePlusLidar;
+		otps.pcaDims = 32;
+		variants.push_back({ "J group pca32+lidar", otps });
+	}
+
+	{
+		auto otps = base;
+		otps.target = CourseCrossValidator::Target::Group;
+		otps.featureSet = CourseCrossValidator::FeatureSet::PcaImagePlusLidar;
+		otps.pcaDims = 32;
+		otps.classPriors = true;
+		variants.push_back({ "K group pca32+lidar priors", otps });
+	}
+
+	{
+		auto otps = base;
+		otps.featureSet = CourseCrossValidator::FeatureSet::LidarOnly;
+		otps.rf.activeVarCount = 3;
+		variants.push_back({ "L species lidar-only", otps });
+	}
+
+	std::vector<CourseCrossValidator::Report> reports;
+
+	for (auto& v : variants)
+	{
+		std::cout << "\n############ " << v.first << " ############\n";
+
+		CourseCrossValidator::Report r = CourseCrossValidator::run(feats, v.second);
+		r.config = v.first + "  [" + r.config + "]";
+		CourseCrossValidator::print(r);
+		reports.push_back(std::move(r));
+	}
+
+	CourseCrossValidator::printTable(reports);
 
 	return 0;
 }

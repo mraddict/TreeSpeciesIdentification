@@ -48,6 +48,7 @@ struct HierarchicalResult
 
 struct HierarchicalOptions
 {
+/*
 	// Group definitions
 	// Conifers (침엽수)
 	std::vector<std::string> coniferCodes =
@@ -69,6 +70,7 @@ struct HierarchicalOptions
 	{
 		"77", "78", "81", "82", "83", "91", "92", "93", "94", "95", "99"
 	};
+*/
 
 	// RF parameters per level
 	ClassifierOptions level1Opts;
@@ -1081,6 +1083,7 @@ private:
 
 	void buildGroupMapping(const HierarchicalOptions& opts)
 	{
+/*
 		for (auto& code : opts.coniferCodes)
 		{
 			codeToGroup[code] = "C";
@@ -1099,6 +1102,15 @@ private:
 		for (auto& code : opts.nonForestCodes)
 		{
 			codeToGroup[code] = "N";
+		}
+*/
+		codeToGroup.clear();
+
+		for (auto& e : SpeciesCodes::entries())
+		{
+			std::string g = e.group;
+
+			codeToGroup[e.code] = (g == "M") ? "N" : g;
 		}
 	}
 
