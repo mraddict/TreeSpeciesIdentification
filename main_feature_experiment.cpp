@@ -466,7 +466,25 @@ static const CourseDataSet& findCourse(const CourseDataSetConfig& cfg, const std
 	throw std::runtime_error("Course not found in config: " + courseName);
 }
 
+// Per-course counts collected by prepare (-1 = not run)
+struct CourseRunStats
+{
+	int total = -1;					// tree_info rows (no exclusion applied)
+	int removed = -1;				// action == remove, present in tree_info
+	int insideForest = -1;			// kept trees with InsideForest == Y
+	int noFeatureRow = -1;			// kept trees without a features_dino.csv row
+	int exported = -1;				// trees.json
+	bool hasExclusionFile = false;
+};
+
+static int exportCourse(const std::string& configPath, const std::string& outDir, const std::string& courseName, CourseRunStats* stats);
+
 int runExport(const std::string& configPath, const std::string& outDir, const std::string& courseName)
+{
+	return exportCourse(configPath, outDir, courseName, nullptr);
+}
+
+static int exportCourse(const std::string& configPath, const std::string& outDir, const std::string& courseName, CourseRunStats* stats)
 {
 	CourseDataSetConfig cfg = CourseDataSetConfigLoader::load(configPath);
 
@@ -624,6 +642,11 @@ int runExport(const std::string& configPath, const std::string& outDir, const st
 	else
 	{
 		std::cout << "  Not exported (InsideForest == Y or no embedding): " << noEmbedding << "\n";
+	}
+
+	if (stats)
+	{
+		stats->exported = written;
 	}
 
 	return 0;
@@ -1202,7 +1225,15 @@ static std::vector<std::string> saveContactSheets(const std::vector<const Review
 	return paths;
 }
 
+static int reviewCourse(const std::string& configPath, const std::string& outDir, const std::string& courseName, CourseRunStats* stats);
+
 int runReview(const std::string& configPath, const std::string& outDir, const std::string& courseName)
+{
+	return reviewCourse(configPath, outDir, courseName, nullptr);
+}
+
+// No remove rows (or no file): everything is drawn as kept, no tiles / removed sheets
+static int reviewCourse(const std::string& configPath, const std::string& outDir, const std::string& courseName, CourseRunStats* stats)
 {
 	CourseDataSetConfig cfg = CourseDataSetConfigLoader::load(configPath);
 	const CourseDataSet& course = findCourse(cfg, courseName);
@@ -1218,7 +1249,7 @@ int runReview(const std::string& configPath, const std::string& outDir, const st
 
 	if (removedIds.empty())
 	{
-		throw std::runtime_error("No remove rows in: " + exclusionPath);
+		std::cout << "  ! No remove rows in " << exclusionPath << " - all trees are drawn as kept\n";
 	}
 
 	int autoForest = 0;
@@ -1678,6 +1709,163 @@ int runReview(const std::string& configPath, const std::string& outDir, const st
 
 	std::cout << "\n" << text;
 
+	if (stats)
+	{
+		stats->total = (int)trees.size();
+		stats->removed = nRemoved;
+		stats->insideForest = forestCount[0][0];
+		stats->noFeatureRow = forestCount[0][2];
+		stats->hasExclusionFile = TSICommon::exists(exclusionPath);
+	}
+
+	return 0;
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------
+//  prepare : export -> review for one course, or for every enabled course ("all")
+//    <out>/<course>/trees.json, review_*      as export / review
+//    <out>/prepare_summary.txt                 all: per-course table (total / removed / InsideForest Y / exported)
+//  No tree_info_excluded.csv : warning only.
+//  No features_dino.csv rows for the course : export skipped, extract needed (not run here).
+// ----------------------------------------------------------------------------------------------------------------------------
+
+struct PrepareRow
+{
+	std::string course;
+	CourseRunStats stats;
+	std::string note;
+};
+
+static void appendNote(std::string& note, const std::string& s)
+{
+	note += (note.empty() ? "" : "; ") + s;
+}
+
+static PrepareRow prepareCourse(const std::string& configPath, const std::string& outDir, const CourseDataSet& course)
+{
+	PrepareRow row;
+	row.course = course.courseName;
+
+	std::cout << "\n##### Prepare: " << course.courseName << " #####\n";
+
+	std::string exclusionPath = TreeExclusion::resolvePath(course.treeInfoPath, course.treeExcludePath);
+
+	if (!TSICommon::exists(exclusionPath))
+	{
+		std::cout << "  ! 제외 파일 없음 - edit 로 먼저 검토 권장 (" << exclusionPath << ")\n";
+		appendNote(row.note, "no exclusion file");
+	}
+
+	std::string featPath = TSICommon::join(outDir, "features_dino.csv");
+	size_t featRows = TSICommon::exists(featPath) ? loadFeatureRows(featPath, course.courseName).size() : 0;
+
+	try
+	{
+		if (featRows == 0)
+		{
+			std::cout << "  ! " << featPath << " has no rows for " << course.courseName << " - extract needed (not run), export skipped\n";
+			appendNote(row.note, "extract needed");
+		}
+		else
+		{
+			exportCourse(configPath, outDir, course.courseName, &row.stats);
+		}
+
+		reviewCourse(configPath, outDir, course.courseName, &row.stats);
+	}
+	catch (const std::exception& e)
+	{
+		std::cout << "  ERROR: " << e.what() << "\n";
+		appendNote(row.note, std::string("error: ") + e.what());
+	}
+
+	if (featRows == 0)
+	{
+		row.stats.insideForest = -1;		// unknown without feature rows
+	}
+
+	return row;
+}
+
+static std::string prepareCell(int v)
+{
+	return (v < 0) ? "-" : std::to_string(v);
+}
+
+int runPrepare(const std::string& configPath, const std::string& outDir, const std::string& target)
+{
+	CourseDataSetConfig cfg = CourseDataSetConfigLoader::load(configPath);
+
+	if (target != "all")
+	{
+		PrepareRow row = prepareCourse(configPath, outDir, findCourse(cfg, target));
+
+		return (row.note.find("error") == std::string::npos) ? 0 : 2;
+	}
+
+	std::vector<PrepareRow> rows;
+
+	for (auto& c : cfg.courses)
+	{
+		if (c.enabled)
+		{
+			rows.push_back(prepareCourse(configPath, outDir, c));
+		}
+		else
+		{
+			std::cout << "\n  Skipped (disabled in config): " << c.courseName << "\n";
+		}
+	}
+
+	// Summary table
+	std::ostringstream ss;
+	char buf[512];
+	int sum[4] = { 0, 0, 0, 0 };
+
+	ss << "=== Prepare summary: " << configPath << " ===\n";
+	sprintf_s(buf, "  %-10s %8s %8s %10s %8s  %s\n", "course", "total", "removed", "forest(Y)", "export", "note");
+	ss << buf;
+
+	for (auto& r : rows)
+	{
+		sprintf_s(buf, "  %-10s %8s %8s %10s %8s  %s\n", r.course.c_str(), prepareCell(r.stats.total).c_str(), prepareCell(r.stats.removed).c_str(),
+			prepareCell(r.stats.insideForest).c_str(), prepareCell(r.stats.exported).c_str(), r.note.c_str());
+		ss << buf;
+
+		sum[0] += std::max(0, r.stats.total);
+		sum[1] += std::max(0, r.stats.removed);
+		sum[2] += std::max(0, r.stats.insideForest);
+		sum[3] += std::max(0, r.stats.exported);
+	}
+
+	sprintf_s(buf, "  %-10s %8d %8d %10d %8d\n", "sum", sum[0], sum[1], sum[2], sum[3]);
+	ss << buf;
+	ss << "  total     : tree_info rows (no exclusion)\n";
+	ss << "  removed   : tree_info_excluded.csv action == remove\n";
+	ss << "  forest(Y) : kept trees with InsideForest == Y (features_dino.csv)\n";
+	ss << "  export    : trees.json (course interior = InsideForest == N, or courseBoundary)\n";
+
+	std::string text = ss.str();
+	std::string path = TSICommon::join(outDir, "prepare_summary.txt");
+	std::ofstream out(path, std::ios::binary);
+
+	if (!out.is_open())
+	{
+		throw std::runtime_error("Failed to write: " + path);
+	}
+
+	for (char ch : text)
+	{
+		if (ch == '\n')
+		{
+			out << '\r';
+		}
+
+		out << ch;
+	}
+
+	std::cout << "\n" << text << "  Saved: " << path << "\n";
+
 	return 0;
 }
 
@@ -1738,6 +1926,7 @@ int runEdit(const std::string& configPath, const std::string& courseName)
 // TreeSpeciesIdentification.exe --experiment export ..\..\Resources\courses_dataset.json out\ Hwarang
 // TreeSpeciesIdentification.exe --experiment render ..\..\Resources\courses_dataset.json out\ Hwarang [--skip-forest]
 // TreeSpeciesIdentification.exe --experiment review ..\..\Resources\courses_dataset.json Hwarang
+// TreeSpeciesIdentification.exe --experiment prepare ..\..\Resources\courses_dataset.json Hwarang|all
 
 int runFeatureExperiment(int argc, char** argv)
 {

@@ -38,6 +38,13 @@ TreeSpeciesIdentification.exe --experiment review <config> <course>
   - review_overview.jpg (1/4, remove=빨강 원+X, 유지=얇은 녹색 원), review_tile_01~06.jpg (원본 1536px, 1536px 그리드에서 remove 많은 칸의 remove 중심, 좌상단에 중심 좌표 EPSG:5179 + 타일 내 remove/유지 수)
   - review_excluded_sheet_NN.jpg (remove 전부, TreeID 순, 96x96 20열 400개/장), review_kept_sheet.jpg (유지 무작위 400, seed 42). 썸네일은 features_dino.csv ImagePath 의 크롭, 없으면 항공사진에서 잘라냄(TreeID 노란색)
   - review_summary.txt: 수고/수관직경 분포, InsideForest 비율, 그리드 상위 10칸(remove/전체, 90% 이상이면 block)
+  - remove 행이 없으면(파일 없음 포함) 경고 후 전부 유지로 그림 (타일·제외 시트 없음)
+TreeSpeciesIdentification.exe --experiment prepare <config> <course|all>
+- prepare: export → review 를 순서대로 실행 (출력 out\<course>\). all = config 에서 enabled 인 코스 전부
+  - tree_info_excluded.csv 가 없으면 "제외 파일 없음 - edit 로 먼저 검토 권장" 경고만 하고 진행
+  - features_dino.csv 에 그 코스 행이 없으면 export 생략 + "extract needed" (extract 는 실행 안 함), review 는 진행
+  - 코스별 오류는 note 에 남기고 다음 코스 계속
+  - all: 마지막에 코스별 표 (total=tree_info 전체 / removed / forest(Y)=유지 나무 중 InsideForest==Y / export=trees.json 수) 를 콘솔과 out\prepare_summary.txt 에
 - 제외 파일: tree_info 옆 <course>_tree_info_excluded.csv (config 코스 항목 "tree_exclude" 로 경로 지정 가능)
   - 헤더 TreeID,action,note. TreeID 는 tree_info 원본 ID(코스 오프셋 미적용). action = remove | auto_forest, note 는 사유용
   - 편집기 시작 시 읽어서 상태 복원. tree_info 에 없는 ID 행과 note 는 저장 시 보존
@@ -45,6 +52,7 @@ TreeSpeciesIdentification.exe --experiment review <config> <course>
   - remove: FeatureExtractor::loadCSV 도 config 기준(TreeExclusion::registerConfig, 오프셋 적용 ID)으로 행 제외 → features_*.csv 재추출 불필요
   - auto_forest: TreeLoader 는 유지 (export 단계에서 따로 처리 예정)
 - 코스 설정: ..\..\Resources\courses_dataset.json (--config 없을 때 기본값, experiment eval/sweep/lidar 도 이 파일 사용)
+  - 7개 코스 모두 enabled (Hermon 은 2026-10-15 에 켬). Hermon 은 아직 features_*.csv 에 없음 → extract 필요
 - 모델: ..\..\Resources\models\dinov2_vits14.onnx
 - 로그: results\ 및 out\logs\
 
