@@ -28,6 +28,8 @@ TreeSpeciesIdentification.exe --experiment edit <config> <course>
   - A: 선택 해제, I: 선택 반전
   - Delete: 선택 → remove, U: 선택 → 유지, F: 선택 → auto_forest, Ctrl+Z: 마지막 편집 취소 (최대 1000단계, 선택 변경은 대상 아님)
   - 검토: X: remove 된 나무만 표시/전체 토글(숨긴 나무는 선택 불가), N/P: 시작 시점 remove 목록을 순서대로 이동(중앙·줌 8, 그 나무만 선택, 원본 해상도 1536px 창을 GDAL 로 읽어 겹쳐 그림), 좌상단에 TreeID/수고/수관직경/현재 상태. U 로 되살리기
+  - 선택 보조: V: 마지막 사각형/올가미 영역(A 로 해제, 없으면 화면 범위) 안의 유지 나무 중 수관 평균 HSV 가 밝고(V >= bright) 채도 낮은(S <= sat) 것을 선택에 추가만 함 (제외는 Delete). [ / ]: bright -/+5, { / }: sat -/+5 (기본 170 / 60), 좌상단 표시
+  - 제외는 수동만: edit 시작 시 note 가 auto_ 로 시작하는 행은 삭제 (로그 "auto_* rows reverted: N, remaining rows: M")
   - S: 저장. Q/Esc: 종료 — 저장 안 된 변경이 있으면 콘솔에 "저장하지 않은 변경 N건" 경고 후 한 번 더 눌러야 종료
 TreeSpeciesIdentification.exe --experiment review <config> <course>
 - review: tree_info_excluded 의 remove 가 맞는지 검토용 산출물 (출력 out\<course>\, auto_forest 는 유지로 집계)

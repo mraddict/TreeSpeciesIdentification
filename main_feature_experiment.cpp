@@ -1700,6 +1700,12 @@ int runEdit(const std::string& configPath, const std::string& courseName)
 	std::cout << "  tree_info : " << course.treeInfoPath << "\n";
 	std::cout << "  exclusion : " << exclusionPath << (TSICommon::exists(exclusionPath) ? "" : " (new)") << "\n";
 
+	// exclusions are manual only: rows from automatic filters (note auto_*) are reverted
+	int remaining = 0;
+	int reverted = TreeExclusion::dropAutoRows(exclusionPath, &remaining);
+
+	std::cout << "  auto_* rows reverted: " << reverted << ", remaining rows: " << remaining << "\n";
+
 	// every tree, TreeID without course offset, no exclusion applied
 	TreeData trees = TreeLoader::load(course.treeInfoPath, course.treeSrcEPSG, kExportEpsg, 0.0, 0.0, TreeExclusion::kNone);
 	AerialPhoto aerial = AerialLoader::load(course.aerialImgPath, kEditImageScale);

@@ -14,6 +14,9 @@
 //  Review: X = show removed trees only / all
 //          N / P = next / previous removed tree (order of the file at start); centred, zoomed and selected,
 //                  drawn from the full-resolution file when aerialPath is given. U restores it.
+//  Assist: V = add "bright, low saturation" kept trees to the selection (never removes; Delete does)
+//              scope = last rectangle / lasso area (cleared by A), otherwise the visible screen
+//              crown mean HSV: V >= brightMin and S <= satMax.  [ / ] = brightMin -/+ 5, { / } = satMax -/+ 5
 // ----------------------------------------------------------------------------------------------------------------------------
 
 #include "ImageViewer.h"
@@ -37,6 +40,7 @@ public:
 		st.fileEntries = TreeExclusion::load(exclusionPath);
 		st.aerialPath = aerialPath;
 		st.loadScale = (aerial.loadScale > 0.0) ? aerial.loadScale : 1.0;
+		st.image = &aerial.image;
 
 		double gt[6] = { aerial.originX, aerial.pixelW, aerial.rotationX, aerial.originY, aerial.rotationY, aerial.pixelH };
 		double igt[6];
@@ -70,6 +74,7 @@ public:
 		}
 
 		st.saved.resize(st.trees.size());
+		st.crownColor.assign(st.trees.size(), cv::Vec2f(-1.0f, -1.0f));
 
 		for (size_t i = 0 ; i < st.trees.size() ; ++i)
 		{
@@ -84,7 +89,7 @@ public:
 		ImageViewer::Options opt;
 		opt.title = title;
 		opt.printControls = false;
-		opt.hint = "Click  Shift+drag  L:lasso  A:clear  I:invert  Del:remove  U:keep  F:auto_forest  Ctrl+Z:undo  S:save  X:removed only  N/P:next/prev  R:reset  Q:quit";
+		opt.hint = "Click  Shift+drag  L:lasso  A:clear  I:invert  Del:remove  U:keep  F:auto_forest  Ctrl+Z:undo  S:save  X:removed only  N/P:next/prev  V:select bright  [ ] { }:threshold  R:reset  Q:quit";
 
 		st.windowW = opt.windowW;
 		st.windowH = opt.windowH;
@@ -105,6 +110,8 @@ public:
 			<< "  S             : save\n"
 			<< "  X             : show removed trees only / all\n"
 			<< "  N / P         : next / previous removed tree (" << st.reviewList.size() << "), zoomed" << (aerialPath.empty() ? "" : " at full resolution") << ", U = restore\n"
+			<< "  V             : add bright, low-saturation kept trees in the rect/lasso area (or screen) to the selection - Delete to remove\n"
+			<< "  [ / ]  { / }  : bright min -/+ 5,  saturation max -/+ 5 (HSV 0-255)\n"
 			<< "  Q / Esc       : quit (press twice if there are unsaved changes)\n";
 
 		ImageViewer::show(aerial.image, opt);
@@ -167,6 +174,15 @@ private:
 		cv::Mat hires;										// full-resolution window around the current review tree
 		cv::Rect2f hiresRect;								// its extent in loaded-image pixels
 
+		// V: bright / low-saturation selection assist
+		const cv::Mat* image = nullptr;					// loaded (downscaled) aerial image, BGR
+		std::vector<cv::Vec2f> crownColor;					// per tree: mean HSV (V, S) in the crown circle, -1 = not computed
+		int brightMin = kDefaultBrightMin;
+		int satMax = kDefaultSatMax;
+		std::vector<cv::Point2f> region;					// last rectangle / lasso area (image px), V scope
+		std::string regionKind;
+		ImageViewer::View lastView{ 1.0, 0.0, 0.0 };
+
 		std::string message;
 	};
 
@@ -180,6 +196,9 @@ private:
 	static constexpr size_t kUndoLimit = 1000;
 	static constexpr double kFocusZoom = 8.0;				// screen px per loaded-image px for N / P (1/4 load: 2x the original)
 	static constexpr int kHiresHalf = 768;				// full-resolution window half size (file px) read for N / P
+	static constexpr int kDefaultBrightMin = 170;		// V: crown mean HSV value >= this (0-255)
+	static constexpr int kDefaultSatMax = 60;			// V: crown mean HSV saturation <= this (0-255)
+	static constexpr int kThresholdStep = 5;
 
 	static Mark fromAction(const std::string& action)
 	{
@@ -311,6 +330,85 @@ private:
 		cv::Mat part;
 		cv::resize(st.hires(src), part, vis.size(), 0, 0, (sx < 1.0) ? cv::INTER_LINEAR : cv::INTER_AREA);
 		part.copyTo(canvas(vis));
+	}
+
+	// Mean HSV (V, S) inside the crown circle on the loaded image (cached)
+	static cv::Vec2f crownColorOf(State& st, int i)
+	{
+		cv::Vec2f& c = st.crownColor[i];
+
+		if (c[0] >= 0.0f)
+		{
+			return c;
+		}
+
+		const Tree& t = st.trees[i];
+		const cv::Mat& img = *st.image;
+		int r = std::max(2, (int)std::lround(t.rPx));
+		cv::Rect box = cv::Rect((int)t.px.x - r, (int)t.px.y - r, 2 * r + 1, 2 * r + 1) & cv::Rect(0, 0, img.cols, img.rows);
+
+		c = cv::Vec2f(0.0f, 255.0f);			// outside the image: never "bright"
+
+		if (box.area() > 0)
+		{
+			cv::Mat hsv;
+			cv::cvtColor(img(box), hsv, cv::COLOR_BGR2HSV);
+
+			cv::Mat mask = cv::Mat::zeros(box.size(), CV_8U);
+			cv::circle(mask, cv::Point((int)t.px.x - box.x, (int)t.px.y - box.y), r, cv::Scalar(255), -1);
+
+			cv::Scalar m = cv::mean(hsv, mask);
+			c = cv::Vec2f((float)m[2], (float)m[1]);
+		}
+
+		return c;
+	}
+
+	// V: add kept, visible, unselected trees with a bright, low-saturation crown inside the scope to the selection
+	static void selectBright(State& st)
+	{
+		std::vector<cv::Point2f> scope = st.region;
+		std::string scopeName = st.regionKind;
+
+		if (scope.empty())
+		{
+			cv::Point2f a = toImage(0, 0, st.lastView);
+			cv::Point2f b = toImage(st.windowW, st.windowH, st.lastView);
+
+			scope = { a, cv::Point2f(b.x, a.y), b, cv::Point2f(a.x, b.y) };
+			scopeName = "screen";
+		}
+
+		int candidates = 0;
+		int added = 0;
+
+		for (int i = 0 ; i < (int)st.trees.size() ; ++i)
+		{
+			Tree& t = st.trees[i];
+
+			if ((t.mark != Mark::Keep) || t.selected || !isVisible(st, t) || (cv::pointPolygonTest(scope, t.px, false) < 0))
+			{
+				continue;
+			}
+
+			++candidates;
+
+			cv::Vec2f c = crownColorOf(st, i);
+
+			if ((c[0] >= st.brightMin) && (c[1] <= st.satMax))
+			{
+				t.selected = true;
+				++added;
+			}
+		}
+
+		st.message = "V (" + scopeName + "): +" + std::to_string(added) + " selected of " + std::to_string(candidates) + " kept trees - Delete to remove";
+	}
+
+	static void setRegion(State& st, const std::vector<cv::Point2f>& poly, const char* kind)
+	{
+		st.region = poly;
+		st.regionKind = kind;
 	}
 
 	static int countUnsaved(const State& st)
@@ -483,6 +581,7 @@ private:
 			}
 		}
 
+		setRegion(st, { p0, cv::Point2f(p1.x, p0.y), p1, cv::Point2f(p0.x, p1.y) }, "rect");
 		st.message = "Rectangle: +" + std::to_string(n);
 	}
 
@@ -506,6 +605,7 @@ private:
 			}
 		}
 
+		setRegion(st, st.lasso, "lasso");
 		st.message = "Lasso: +" + std::to_string(n);
 	}
 
@@ -618,7 +718,26 @@ private:
 				{
 					t.selected = false;
 				}
+				st.region.clear();
+				st.regionKind.clear();
 				st.message = "Selection cleared";
+				return true;
+
+			case 'v':
+			case 'V':
+				selectBright(st);
+				return true;
+
+			case '[':
+			case ']':
+				st.brightMin = std::min(255, std::max(0, st.brightMin + ((k == ']') ? kThresholdStep : -kThresholdStep)));
+				st.message = "Bright min " + std::to_string(st.brightMin);
+				return true;
+
+			case '{':
+			case '}':
+				st.satMax = std::min(255, std::max(0, st.satMax + ((k == '}') ? kThresholdStep : -kThresholdStep)));
+				st.message = "Saturation max " + std::to_string(st.satMax);
 				return true;
 
 			case 'i':
@@ -683,6 +802,8 @@ private:
 		int counts[3] = { 0, 0, 0 };
 		int selected = 0;
 
+		st.lastView = v;
+
 		drawHires(st, canvas, v);
 
 		for (auto& t : st.trees)
@@ -735,6 +856,20 @@ private:
 			}
 		}
 
+		// V scope (last rectangle / lasso area)
+		if (!st.region.empty())
+		{
+			std::vector<cv::Point> pts;
+
+			for (auto& p : st.region)
+			{
+				cv::Point2f s = toScreen(p, v);
+				pts.push_back(cv::Point((int)s.x, (int)s.y));
+			}
+
+			cv::polylines(canvas, pts, true, cv::Scalar(200, 200, 120), 1, cv::LINE_AA);
+		}
+
 		if (st.rectActive)
 		{
 			cv::rectangle(canvas, st.downPt, st.mousePt, kSelectColor, 1, cv::LINE_AA);
@@ -770,6 +905,8 @@ private:
 				+ "  AutoForest " + std::to_string(counts[(int)Mark::AutoForest]) + "  Selected " + std::to_string(selected),
 			"Mode: " + mode + (st.removedOnly ? "   [X] removed only" : ""),
 			(unsaved > 0) ? "* unsaved changes: " + std::to_string(unsaved) : "saved",
+			"V select: bright >= " + std::to_string(st.brightMin) + "  sat <= " + std::to_string(st.satMax)
+				+ "   ([ ] bright, { } sat)   scope: " + (st.region.empty() ? std::string("screen") : st.regionKind),
 		};
 
 		if (st.reviewPos >= 0)

@@ -29,6 +29,7 @@ public:
 	static constexpr const char* kRemove = "remove";
 	static constexpr const char* kAutoForest = "auto_forest";
 	static constexpr const char* kNone = "<none>";			// TreeLoader::load: do not apply any file
+	static constexpr const char* kAutoNotePrefix = "auto_";	// note of rows written by an automatic filter (dropped by dropAutoRows)
 
 	// explicitPath (config tree_exclude) if set, otherwise "<tree_info stem>_excluded.csv"
 	static std::string resolvePath(const std::string& treeInfoPath, const std::string& explicitPath = "")
@@ -110,6 +111,39 @@ public:
 		{
 			file << kv.first << "," << kv.second.action << "," << kv.second.note << "\r\n";
 		}
+	}
+
+	// Exclusions are manual only: drop rows whose note marks an automatic filter (note starts with "auto_").
+	// The file is rewritten only if such rows exist. Returns the number of dropped rows.
+	static int dropAutoRows(const std::string& path, int* remaining = nullptr)
+	{
+		std::map<long long, Entry> entries = load(path);
+		int dropped = 0;
+
+		for (auto it = entries.begin() ; it != entries.end() ; )
+		{
+			if (TSICommon::trim(it->second.note).rfind(kAutoNotePrefix, 0) == 0)
+			{
+				it = entries.erase(it);
+				++dropped;
+			}
+			else
+			{
+				++it;
+			}
+		}
+
+		if (dropped > 0)
+		{
+			save(path, entries);
+		}
+
+		if (remaining)
+		{
+			*remaining = (int)entries.size();
+		}
+
+		return dropped;
 	}
 
 	static std::unordered_set<long long> removedIds(const std::map<long long, Entry>& entries)
