@@ -21,13 +21,15 @@ TreeSpeciesIdentification.exe --experiment edit <config> <course>
 - edit: tree_info 의 모든 나무를 항공사진 위에 표시하고 오검출을 표시하는 편집기 (TreeEditor.h, ImageViewer 기반)
   - 항공사진은 GDAL 로 1/4 축소본만 로드. 원본 tree_info CSV 는 절대 수정하지 않음
   - 색: 녹색=유지, 빨강+X=remove, 파랑=auto_forest, 노란 테두리=선택. 줌이 작으면 점만 표시
-  - 좌상단: 전체/유지/remove/auto_forest/선택 수, 모드(NORMAL/RECT/LASSO), 저장 안 된 변경 수, 줌
+  - 좌상단: 전체/유지/remove/auto_forest/선택 수, "Selected: removed N / kept M (U -> keep a, Del -> remove b)" (U·Delete 가 실제로 바꿀 그루 수), 모드(NORMAL/RECT/LASSO), 저장 안 된 변경 수, 줌
   - 좌드래그: 팬, 휠: 줌, R: 뷰 리셋
+  - 선택은 상태와 무관 (유지·remove·auto_forest 모두 선택됨, X 모드에서 숨긴 나무만 제외)
   - 좌클릭: 화면 15px 이내 가장 가까운 나무 선택 토글 / Shift+드래그: 사각형 선택(추가)
   - L: 올가미 시작 → 클릭으로 꼭짓점 추가 → Enter 확정(선택 추가) / Esc 취소
   - A: 선택 해제, I: 선택 반전
-  - Delete: 선택 → remove, U: 선택 → 유지, F: 선택 → auto_forest, Ctrl+Z: 마지막 편집 취소 (최대 1000단계, 선택 변경은 대상 아님)
-  - 검토: X: remove 된 나무만 표시/전체 토글(숨긴 나무는 선택 불가), N/P: 시작 시점 remove 목록을 순서대로 이동(중앙·줌 8, 그 나무만 선택, 원본 해상도 1536px 창을 GDAL 로 읽어 겹쳐 그림), 좌상단에 TreeID/수고/수관직경/현재 상태. U 로 되살리기
+  - Delete: 선택 → remove, U: 선택 → 유지 (remove 된 나무 되살리기), F: 선택 → auto_forest, Ctrl+Z: 마지막 편집 취소 (최대 1000단계, 선택 변경은 대상 아님)
+  - 되살리기: 제외된 나무(빨강 X) 클릭/Shift+드래그/올가미로 선택 → U → 녹색. Ctrl+Z 로 취소, S 로 저장해야 파일에 반영
+  - 검토: X: remove 된 나무만 표시/전체 토글(숨긴 나무는 선택 불가), N/P: 시작 시점 remove 목록을 순서대로 이동(중앙·줌 8, 그 나무만 선택, 원본 해상도 1536px 창을 GDAL 로 읽어 겹쳐 그림), 좌상단에 TreeID/수고/수관직경/현재 상태. 그 상태에서 U = 그 나무만 되살림
   - 선택 보조: V: 마지막 사각형/올가미 영역(A 로 해제, 없으면 화면 범위) 안의 유지 나무 중 수관 평균 HSV 가 밝고(V >= bright) 채도 낮은(S <= sat) 것을 선택에 추가만 함 (제외는 Delete). [ / ]: bright -/+5, { / }: sat -/+5 (기본 170 / 60), 좌상단 표시
   - 제외는 수동만: edit 시작 시 note 가 auto_ 로 시작하는 행은 삭제 (로그 "auto_* rows reverted: N, remaining rows: M")
   - S: 저장. Q/Esc: 종료 — 저장 안 된 변경이 있으면 콘솔에 "저장하지 않은 변경 N건" 경고 후 한 번 더 눌러야 종료

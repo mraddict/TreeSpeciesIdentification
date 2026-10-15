@@ -800,6 +800,7 @@ private:
 		int W = canvas.cols;
 		int H = canvas.rows;
 		int counts[3] = { 0, 0, 0 };
+		int selCounts[3] = { 0, 0, 0 };		// selected trees by mark
 		int selected = 0;
 
 		st.lastView = v;
@@ -810,6 +811,7 @@ private:
 		{
 			counts[(int)t.mark] += 1;
 			selected += t.selected ? 1 : 0;
+			selCounts[(int)t.mark] += t.selected ? 1 : 0;
 
 			if (!isVisible(st, t))
 			{
@@ -903,6 +905,9 @@ private:
 		{
 			"Total " + std::to_string(st.trees.size()) + "  Keep " + std::to_string(counts[(int)Mark::Keep]) + "  Removed " + std::to_string(counts[(int)Mark::Remove])
 				+ "  AutoForest " + std::to_string(counts[(int)Mark::AutoForest]) + "  Selected " + std::to_string(selected),
+			"Selected: removed " + std::to_string(selCounts[(int)Mark::Remove]) + " / kept " + std::to_string(selCounts[(int)Mark::Keep])
+				+ ((selCounts[(int)Mark::AutoForest] > 0) ? " / auto_forest " + std::to_string(selCounts[(int)Mark::AutoForest]) : std::string())
+				+ "   (U -> keep " + std::to_string(selected - selCounts[(int)Mark::Keep]) + ", Del -> remove " + std::to_string(selected - selCounts[(int)Mark::Remove]) + ")",
 			"Mode: " + mode + (st.removedOnly ? "   [X] removed only" : ""),
 			(unsaved > 0) ? "* unsaved changes: " + std::to_string(unsaved) : "saved",
 			"V select: bright >= " + std::to_string(st.brightMin) + "  sat <= " + std::to_string(st.satMax)
