@@ -52,7 +52,7 @@ TreeSpeciesIdentification.exe --experiment prepare <config> <course|all>
   - remove: FeatureExtractor::loadCSV 도 config 기준(TreeExclusion::registerConfig, 오프셋 적용 ID)으로 행 제외 → features_*.csv 재추출 불필요
   - auto_forest: TreeLoader 는 유지 (export 단계에서 따로 처리 예정)
 - 코스 설정: ..\..\Resources\courses_dataset.json (--config 없을 때 기본값, experiment eval/sweep/lidar 도 이 파일 사용)
-  - 7개 코스 모두 enabled (Hermon 은 2026-10-15 에 켬). Hermon 은 아직 features_*.csv 에 없음 → extract 필요
+  - Hermon(HermonCC) 은 enabled=false 유지 (prepare all 등 모든 작업에서 제외). 항공사진·tree_info·임상도 SHP 는 있으나 features_*.csv 에 없음 → 다시 포함하려면 extract 필요
 - 모델: ..\..\Resources\models\dinov2_vits14.onnx
 - 로그: results\ 및 out\logs\
 
