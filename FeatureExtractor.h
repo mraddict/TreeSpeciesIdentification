@@ -437,6 +437,7 @@ public:
 		std::cout << "  Features: " << nFeats << " (from header)\n";
 
 		int rowCount = 0;
+		int excludedRows = 0;
 
 		while (std::getline(file, line))
 		{
@@ -489,6 +490,14 @@ public:
 				}
 			}
 
+			// tree_info_excluded (action == remove), registered from the config by TreeExclusion::registerConfig
+			if (parseOk && TreeExclusion::isRemoved(tf.treeId))
+			{
+				++excludedRows;
+
+				continue;
+			}
+
 			if (parseOk)
 			{
 				result.all.push_back(std::move(tf));
@@ -497,6 +506,11 @@ public:
 		}
 
 		file.close();
+
+		if (TreeExclusion::hasRegistry())
+		{
+			std::cout << "  Excluded by tree_info_excluded: " << excludedRows << "\n";
+		}
 
 		// Categorize
 		categorize(result);

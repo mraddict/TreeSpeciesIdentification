@@ -265,7 +265,7 @@ int runSweep(const std::string& outDir);
 int runLidar(const std::string& outDir);
 int runExport(const std::string& configPath, const std::string& outDir, const std::string& courseName);
 int runRender(const std::string& configPath, const std::string& outDir, const std::string& courseName, bool skipForest);
-int runEdit(const std::string& configPath, const std::string& outDir, const std::string& courseName);
+int runEdit(const std::string& configPath, const std::string& courseName);
 
 void printUsage(const char* prog)
 {
@@ -308,7 +308,7 @@ int main(int argc, char** argv)
 	bool isSweepMethod = false;
 	bool isLidarMethod = false;
 
-	std::string courseDataSetConfigFilename = "../../Resources/courses_dataset_old.json";
+	std::string courseDataSetConfigFilename = "../../Resources/courses_dataset.json";
 	int argIdx = 1;
 
 	if (std::string(argv[1]) == "--config" && argc >= 3)
@@ -357,16 +357,16 @@ int main(int argc, char** argv)
 
 	if (experiment && (std::string(argv[2]) == "edit"))
 	{
-		if (argc < 6)
+		if (argc < 5)
 		{
-			std::cerr << "edit needs <courses_dataset.json> <out_dir> <course>\n";
+			std::cerr << "edit needs <courses_dataset.json> <course>\n";
 
 			return 1;
 		}
 
 		try
 		{
-			return runEdit(argv[3], argv[4], argv[5]);
+			return runEdit(argv[3], argv[4]);
 		}
 		catch (const std::exception& e)
 		{
@@ -486,6 +486,7 @@ int main(int argc, char** argv)
 */
 
 	CourseDataSetConfig courseDSConfig = CourseDataSetConfigLoader::load(courseDataSetConfigFilename);
+	TreeExclusion::registerConfig(courseDSConfig);
 
 	try
 	{
@@ -562,7 +563,7 @@ int main(int argc, char** argv)
 				ForestLoader::printInfo(*pForest);
 
 				// 나무 CSV 로드 + 좌표 변환
-				pTrees.reset(new TreeData(TreeLoader::load(course.treeInfoPath, course.treeSrcEPSG, course.targetEPSG)));
+				pTrees.reset(new TreeData(TreeLoader::load(course.treeInfoPath, course.treeSrcEPSG, course.targetEPSG, 0.0, 0.0, course.treeExcludePath)));
 
 				// Apply ID offset
 				pTrees->treeIdOffset = course.treeIdOffset;

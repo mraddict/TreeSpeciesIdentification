@@ -482,7 +482,7 @@ int runExport(const std::string& configPath, const std::string& outDir, const st
 	}
 
 	// 1. Trees in EPSG:5179 (TreeID without course offset)
-	TreeData trees = TreeLoader::load(course->treeInfoPath, course->treeSrcEPSG, kExportEpsg);
+	TreeData trees = TreeLoader::load(course->treeInfoPath, course->treeSrcEPSG, kExportEpsg, 0.0, 0.0, course->treeExcludePath);
 
 	// 2. Candidates: inside the boundary, or every tree (filtered by InsideForest in step 3)
 	std::vector<const TreePoint*> inside;
@@ -566,9 +566,6 @@ int runExport(const std::string& configPath, const std::string& outDir, const st
 	std::string courseDir = TSICommon::join(outDir, courseName);
 	TSICommon::mkdirs(courseDir);
 
-	// Trees deleted in the editor (--experiment edit)
-	std::unordered_set<long long> excludedIds = TreeEditor::loadExcludedIds(TSICommon::join(courseDir, "excluded_ids.csv"));
-
 	std::string jsonPath = TSICommon::join(courseDir, "trees.json");
 	std::ofstream ofs(jsonPath, std::ios::binary);
 
@@ -581,17 +578,9 @@ int runExport(const std::string& configPath, const std::string& outDir, const st
 
 	int written = 0;
 	int noEmbedding = 0;
-	int excludedByEditor = 0;
 
 	for (auto* tp : inside)
 	{
-		if (excludedIds.count(tp->treeId))
-		{
-			++excludedByEditor;
-
-			continue;
-		}
-
 		auto it = embeddings.find(tp->treeId + course->treeIdOffset);
 
 		if (it == embeddings.end())
@@ -627,7 +616,6 @@ int runExport(const std::string& configPath, const std::string& outDir, const st
 	ofs.close();
 
 	std::cout << "  Written: " << written << " trees -> " << jsonPath << "\n";
-	std::cout << "  Excluded by editor (excluded_ids.csv): " << excludedByEditor << "\n";
 
 	if (useBoundary)
 	{
@@ -875,7 +863,7 @@ int runRender(const std::string& configPath, const std::string& outDir, const st
 		exportedIds.insert(tp.treeId);
 	}
 
-	TreeData all = TreeLoader::load(course.treeInfoPath, course.treeSrcEPSG, kExportEpsg);
+	TreeData all = TreeLoader::load(course.treeInfoPath, course.treeSrcEPSG, kExportEpsg, 0.0, 0.0, course.treeExcludePath);
 	auto insideForest = loadInsideForestFlags(TSICommon::join(outDir, "features_dino.csv"), courseName);
 
 	TreeData dropped;		// InsideForest == N, not exported
@@ -1043,22 +1031,26 @@ int runRender(const std::string& configPath, const std::string& outDir, const st
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------
-//  edit : keep/delete editor for <out_dir>/<course>/trees.json on a 1/4 aerial photo (TreeEditor / ImageViewer)
-//    S saves <out_dir>/<course>/excluded_ids.csv, which export skips on the next run.
+//  edit : mark false detections in <course>_tree_info.csv on a 1/4 aerial photo (TreeEditor / ImageViewer)
+//    S saves <tree_info>_excluded.csv (or config tree_exclude); TreeLoader::load / FeatureExtractor::loadCSV drop action == remove.
+//    The tree_info CSV is never modified.
 // ----------------------------------------------------------------------------------------------------------------------------
 
 static const double kEditImageScale = 0.25;
 
-int runEdit(const std::string& configPath, const std::string& outDir, const std::string& courseName)
+int runEdit(const std::string& configPath, const std::string& courseName)
 {
 	CourseDataSetConfig cfg = CourseDataSetConfigLoader::load(configPath);
 	const CourseDataSet& course = findCourse(cfg, courseName);
 
-	std::string courseDir = TSICommon::join(outDir, courseName);
+	std::string exclusionPath = TreeExclusion::resolvePath(course.treeInfoPath, course.treeExcludePath);
 
 	std::cout << "=== Edit: " << courseName << " ===\n";
+	std::cout << "  tree_info : " << course.treeInfoPath << "\n";
+	std::cout << "  exclusion : " << exclusionPath << (TSICommon::exists(exclusionPath) ? "" : " (new)") << "\n";
 
-	std::vector<TreePoint> trees = loadExportedTrees(TSICommon::join(courseDir, "trees.json"));
+	// every tree, TreeID without course offset, no exclusion applied
+	TreeData trees = TreeLoader::load(course.treeInfoPath, course.treeSrcEPSG, kExportEpsg, 0.0, 0.0, TreeExclusion::kNone);
 	AerialPhoto aerial = AerialLoader::load(course.aerialImgPath, kEditImageScale);
 
 	if ((aerial.epsg > 0) && (aerial.epsg != kExportEpsg))
@@ -1070,7 +1062,7 @@ int runEdit(const std::string& configPath, const std::string& outDir, const std:
 			throw std::runtime_error("Failed to create transform EPSG:" + std::to_string(kExportEpsg) + " -> EPSG:" + std::to_string(aerial.epsg));
 		}
 
-		for (auto& tp : trees)
+		for (auto& tp : trees.tps)
 		{
 			ct->Transform(1, &tp.x, &tp.y);
 		}
@@ -1078,7 +1070,7 @@ int runEdit(const std::string& configPath, const std::string& outDir, const std:
 		OGRCoordinateTransformation::DestroyCT(ct);
 	}
 
-	TreeEditor::run(aerial, trees, TSICommon::join(courseDir, "excluded_ids.csv"), "TSI Tree Editor - " + courseName);
+	TreeEditor::run(aerial, trees.tps, exclusionPath, "TSI Tree Editor - " + courseName);
 
 	return 0;
 }

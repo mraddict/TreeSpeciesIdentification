@@ -44,6 +44,7 @@
     <ClInclude Include="SpeciesCodes.h" />
     <ClInclude Include="TreeLabeler.h" />
     <ClInclude Include="TreeEditor.h" />
+    <ClInclude Include="TreeExclusion.h" />
     <ClInclude Include="TreeLoader.h" />
     <ClInclude Include="TSICommon.h" />
   </ItemGroup>

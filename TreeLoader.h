@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ForestLoader.h"
+#include "TreeExclusion.h"
 
 // ─────────────────────────────────────────────
 //  구조체: 개별 나무 데이터
@@ -54,7 +55,8 @@ public:
 	// srcEPSG  : CSV 좌표계 (예: 5186)
 	// dstEPSG  : 임상도 좌표계 (예: 5179)
 	//static std::vector<TreePoint> load(const std::string& csvPath, int srcEPSG, int dstEPSG, double offsetX = 0.0, double offsetY = 0.0)
-	static TreeData load(const std::string& csvPath, int srcEPSG = 0, int dstEPSG = 0, double offsetX = 0.0, double offsetY = 0.0)
+	// excludePath : "" = <tree_info>_excluded.csv next to csvPath if present, TreeExclusion::kNone = none (action == remove is dropped)
+	static TreeData load(const std::string& csvPath, int srcEPSG = 0, int dstEPSG = 0, double offsetX = 0.0, double offsetY = 0.0, const std::string& excludePath = "")
 	{
 		std::ifstream ifs(csvPath);
 
@@ -100,6 +102,11 @@ public:
 
 		// 데이터 읽기
 
+		// Manual corrections: TreeIDs with action == remove are dropped here
+		std::string exclusionPath = (excludePath == TreeExclusion::kNone) ? "" : TreeExclusion::resolvePath(csvPath, excludePath);
+		std::unordered_set<long long> removedIds = exclusionPath.empty() ? std::unordered_set<long long>() : TreeExclusion::removedIds(TreeExclusion::load(exclusionPath));
+		int excludedCount = 0;
+
 		std::string line;
 
 		while (std::getline(ifs, line))
@@ -135,6 +142,13 @@ public:
 					tp.treeId = data.totalRows;
 				}
 
+				if (removedIds.count(tp.treeId))
+				{
+					++excludedCount;
+
+					continue;
+				}
+
 				data.tps.push_back(tp);
 				++data.loadedCount;
 			}
@@ -145,6 +159,11 @@ public:
 		}
 
 		ifs.close();
+
+		if (!removedIds.empty())
+		{
+			std::cout << "  Excluded by tree_info_excluded: " << excludedCount << " (" << exclusionPath << ")\n";
+		}
 
 		for (auto& tp : data.tps)
 		{

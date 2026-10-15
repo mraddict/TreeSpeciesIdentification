@@ -56,6 +56,9 @@
     <ClInclude Include="TreeEditor.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="TreeExclusion.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
     <ClInclude Include="FeatureExtractor.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>

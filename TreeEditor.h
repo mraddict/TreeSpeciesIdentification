@@ -2,87 +2,35 @@
 
 // ----------------------------------------------------------------------------------------------------------------------------
 //  TreeEditor.h
-//  Interactive keep/delete editor for exported trees, built on ImageViewer (pan / zoom / reset).
+//  False-detection editor for a tree_info CSV, built on ImageViewer (pan / zoom / reset).
+//  Saves TreeExclusion files (<course>_tree_info_excluded.csv); the tree_info CSV is never modified.
 //
-//  Mouse:  left drag = pan, wheel = zoom, left click = toggle nearest tree
-//          Shift + left drag = rectangle select
-//  Keys:   L = lasso mode (click vertices, Enter = select, Esc = cancel)
-//          Delete = mark selected as deleted, U = restore selected, Ctrl+Z = undo last Delete/U
-//          A = clear selection, S = save excluded_ids.csv, R = reset view, Q = quit (twice if unsaved)
-//
-//  excluded_ids.csv : one column "TreeID". Read on start; IDs not present in trees.json
-//  (already removed by a later export) are kept when saving.
+//  Mouse:  left drag = pan, wheel = zoom, left click = toggle nearest tree (15 px)
+//          Shift + left drag = rectangle select (adds)
+//  Keys:   L = lasso (click vertices, Enter = select, Esc = cancel)
+//          A = clear selection, I = invert selection
+//          Delete = remove, U = keep, F = auto_forest, Ctrl+Z = undo
+//          S = save, R = reset view, Q / Esc = quit (press twice if unsaved)
 // ----------------------------------------------------------------------------------------------------------------------------
 
 #include "ImageViewer.h"
 #include "AerialLoader.h"
 #include "TreeLoader.h"
+#include "TreeExclusion.h"
 #include "CoordTransformer.h"
 
-#include <unordered_set>
+#include <deque>
 
 class TreeEditor
 {
 public:
 
-	// TreeID column (header / non-numeric lines ignored). Empty set if the file does not exist.
-	static std::unordered_set<long long> loadExcludedIds(const std::string& path)
-	{
-		std::unordered_set<long long> ids;
-		std::ifstream file(path);
-
-		if (!file.is_open())
-		{
-			return ids;
-		}
-
-		std::string line;
-
-		while (std::getline(file, line))
-		{
-			std::string v = TSICommon::trim(line);
-
-			if (v.empty() || !(std::isdigit((unsigned char)v[0]) || (v[0] == '-')))
-			{
-				continue;
-			}
-
-			try { ids.insert(std::stoll(v)); }
-			catch (...) {}
-		}
-
-		std::cout << "  Loaded " << ids.size() << " excluded IDs: " << path << "\n";
-
-		return ids;
-	}
-
-	static void saveExcludedIds(const std::string& path, const std::unordered_set<long long>& ids)
-	{
-		std::vector<long long> sorted(ids.begin(), ids.end());
-		std::sort(sorted.begin(), sorted.end());
-
-		std::ofstream file(path, std::ios::binary);
-
-		if (!file.is_open())
-		{
-			throw std::runtime_error("Failed to write: " + path);
-		}
-
-		file << "TreeID\r\n";
-
-		for (auto id : sorted)
-		{
-			file << id << "\r\n";
-		}
-
-		std::cout << "  Saved " << sorted.size() << " excluded IDs: " << path << "\n";
-	}
-
-	// aerial : image + GeoTransform (may be a downscaled load), trees : coordinates in the aerial CRS
-	static void run(const AerialPhoto& aerial, const std::vector<TreePoint>& trees, const std::string& excludedPath, const std::string& title)
+	// aerial : image + GeoTransform (may be a downscaled load), trees : coordinates in the aerial CRS, TreeID without offset
+	static void run(const AerialPhoto& aerial, const std::vector<TreePoint>& trees, const std::string& exclusionPath, const std::string& title)
 	{
 		State st;
-		st.excludedPath = excludedPath;
+		st.path = exclusionPath;
+		st.fileEntries = TreeExclusion::load(exclusionPath);
 
 		double gt[6] = { aerial.originX, aerial.pixelW, aerial.rotationX, aerial.originY, aerial.rotationY, aerial.pixelH };
 		double igt[6];
@@ -93,87 +41,97 @@ public:
 		}
 
 		double pixPerMeter = std::abs(igt[1]);
-
-		std::unordered_set<long long> excluded = loadExcludedIds(excludedPath);
-		std::unordered_set<long long> shown;
+		int restored = 0;
 
 		for (auto& tp : trees)
 		{
 			Tree t;
 			t.id = tp.treeId;
 			t.px = cv::Point2f((float)(igt[0] + igt[1] * tp.x + igt[2] * tp.y), (float)(igt[3] + igt[4] * tp.x + igt[5] * tp.y));
-			t.rPx = (float)std::max(1.0, tp.crownD * 0.5 * pixPerMeter);
-			t.excluded = (excluded.count(tp.treeId) > 0);
+			t.rPx = (float)std::max(0.5, tp.crownD * 0.5 * pixPerMeter);
+
+			auto it = st.fileEntries.find(tp.treeId);
+
+			if (it != st.fileEntries.end())
+			{
+				t.mark = fromAction(it->second.action);
+				restored += (t.mark != Mark::Keep) ? 1 : 0;
+			}
 
 			st.trees.push_back(t);
-			shown.insert(tp.treeId);
 		}
 
-		for (auto id : excluded)
+		st.saved.resize(st.trees.size());
+
+		for (size_t i = 0 ; i < st.trees.size() ; ++i)
 		{
-			if (!shown.count(id))
-			{
-				st.hiddenExcluded.insert(id);
-			}
+			st.saved[i] = st.trees[i].mark;
 		}
 
 		ImageViewer::Options opt;
 		opt.title = title;
 		opt.printControls = false;
-		opt.hint = "Click:toggle  Shift+drag:rect  L:lasso  Del:delete  U:restore  Ctrl+Z:undo  A:clear  S:save  R:reset  Q:quit";
-		opt.showGeoCoord = false;
+		opt.hint = "Click  Shift+drag  L:lasso  A:clear  I:invert  Del:remove  U:keep  F:auto_forest  Ctrl+Z:undo  S:save  R:reset  Q:quit";
 
 		opt.drawOverlay = [&st](cv::Mat& canvas, const ImageViewer::View& v) { drawOverlay(st, canvas, v); };
 		opt.onMouse = [&st](int event, int x, int y, int flags, const ImageViewer::View& v) { return onMouse(st, event, x, y, flags, v); };
 		opt.onKey = [&st](int key) { return onKey(st, key); };
 
 		std::cout << "=== Tree editor ===\n"
-			<< "  Trees: " << st.trees.size() << " (deleted: " << countExcluded(st) << ", deleted but not in trees.json: " << st.hiddenExcluded.size() << ")\n"
+			<< "  Trees: " << st.trees.size() << ", restored from file: " << restored << " (" << exclusionPath << ")\n"
 			<< "  Left drag     : pan,  wheel: zoom,  R: reset view\n"
-			<< "  Left click    : toggle nearest tree\n"
-			<< "  Shift + drag  : rectangle select\n"
+			<< "  Left click    : toggle nearest tree (within 15 px)\n"
+			<< "  Shift + drag  : rectangle select (adds)\n"
 			<< "  L             : lasso (click vertices, Enter = select, Esc = cancel)\n"
-			<< "  Delete / U    : delete / restore selected,  Ctrl+Z: undo,  A: clear selection\n"
-			<< "  S             : save " << excludedPath << "\n"
-			<< "  Q             : quit (press twice if there are unsaved changes)\n";
+			<< "  A / I         : clear / invert selection\n"
+			<< "  Delete / U / F: remove / keep / auto_forest,  Ctrl+Z: undo\n"
+			<< "  S             : save\n"
+			<< "  Q / Esc       : quit (press twice if there are unsaved changes)\n";
 
 		ImageViewer::show(aerial.image, opt);
 
-		if (st.dirty)
+		int unsaved = countUnsaved(st);
+
+		if (unsaved > 0)
 		{
-			std::cout << "  ! Quit with unsaved changes\n";
+			std::cout << "  ! Quit without saving " << unsaved << " changes\n";
 		}
 	}
 
 private:
+
+	enum class Mark
+	{
+		Keep,
+		Remove,
+		AutoForest
+	};
 
 	struct Tree
 	{
 		long long id = -1;
 		cv::Point2f px;						// image pixel (of the loaded, possibly downscaled, image)
 		float rPx = 1.0f;					// crown radius in image pixels
-		bool excluded = false;
+		Mark mark = Mark::Keep;
 		bool selected = false;
 	};
 
 	struct State
 	{
 		std::vector<Tree> trees;
-		std::unordered_set<long long> hiddenExcluded;		// excluded IDs absent from trees.json, kept on save
-		std::string excludedPath;
+		std::vector<Mark> saved;									// marks at the last load / save
+		std::map<long long, TreeExclusion::Entry> fileEntries;	// notes + IDs not in tree_info are kept on save
+		std::string path;
 
-		std::vector<std::vector<std::pair<int, bool>>> undo;	// per Delete/U: (tree index, previous excluded)
-		bool dirty = false;
+		std::deque<std::vector<std::pair<int, Mark>>> undo;	// per edit: (tree index, previous mark)
 		bool quitArmed = false;
 
-		// click / rectangle
 		bool rectActive = false;
 		cv::Point downPt;
 		cv::Point mousePt;
 
-		// lasso (image pixels)
 		bool lassoMode = false;
-		std::vector<cv::Point2f> lasso;
+		std::vector<cv::Point2f> lasso;					// image pixels
 
 		std::string message;
 	};
@@ -182,8 +140,30 @@ private:
 	static constexpr int kCtrlZ = 26;
 	static constexpr int kEnter = 13;
 	static constexpr int kEsc = 27;
-	static constexpr int kClickSlop = 4;					// px: larger movement is a drag (pan), not a click
-	static constexpr int kPickRadius = 12;				// px on screen, minimum pick distance
+	static constexpr int kClickSlop = 4;					// px: larger movement is a pan, not a click
+	static constexpr int kPickRadius = 15;				// px on screen
+	static constexpr int kMinCrownPx = 3;				// below this screen radius only the center dot is drawn
+	static constexpr size_t kUndoLimit = 1000;
+
+	static Mark fromAction(const std::string& action)
+	{
+		if (action == TreeExclusion::kRemove)
+		{
+			return Mark::Remove;
+		}
+
+		if (action == TreeExclusion::kAutoForest)
+		{
+			return Mark::AutoForest;
+		}
+
+		return Mark::Keep;
+	}
+
+	static const char* toAction(Mark m)
+	{
+		return (m == Mark::Remove) ? TreeExclusion::kRemove : TreeExclusion::kAutoForest;
+	}
 
 	static cv::Point2f toScreen(const cv::Point2f& p, const ImageViewer::View& v)
 	{
@@ -195,42 +175,30 @@ private:
 		return cv::Point2f((float)((x - v.panX) / v.zoom), (float)((y - v.panY) / v.zoom));
 	}
 
-	static int countExcluded(const State& st)
+	static int countUnsaved(const State& st)
 	{
 		int n = 0;
 
-		for (auto& t : st.trees)
+		for (size_t i = 0 ; i < st.trees.size() ; ++i)
 		{
-			n += t.excluded ? 1 : 0;
+			n += (st.trees[i].mark != st.saved[i]) ? 1 : 0;
 		}
 
 		return n;
 	}
 
-	static int countSelected(const State& st)
+	static void applyMark(State& st, Mark mark)
 	{
-		int n = 0;
-
-		for (auto& t : st.trees)
-		{
-			n += t.selected ? 1 : 0;
-		}
-
-		return n;
-	}
-
-	static void setExcludedOnSelection(State& st, bool excluded)
-	{
-		std::vector<std::pair<int, bool>> op;
+		std::vector<std::pair<int, Mark>> op;
 
 		for (int i = 0 ; i < (int)st.trees.size() ; ++i)
 		{
 			Tree& t = st.trees[i];
 
-			if (t.selected && (t.excluded != excluded))
+			if (t.selected && (t.mark != mark))
 			{
-				op.push_back({ i, t.excluded });
-				t.excluded = excluded;
+				op.push_back({ i, t.mark });
+				t.mark = mark;
 			}
 		}
 
@@ -241,9 +209,15 @@ private:
 			return;
 		}
 
-		st.message = std::string(excluded ? "Deleted " : "Restored ") + std::to_string(op.size());
+		const char* name = (mark == Mark::Keep) ? "keep" : toAction(mark);
+		st.message = std::to_string(op.size()) + " -> " + name;
+
 		st.undo.push_back(std::move(op));
-		st.dirty = true;
+
+		if (st.undo.size() > kUndoLimit)
+		{
+			st.undo.pop_front();
+		}
 	}
 
 	static void undoLast(State& st)
@@ -257,44 +231,87 @@ private:
 
 		for (auto& e : st.undo.back())
 		{
-			st.trees[e.first].excluded = e.second;
+			st.trees[e.first].mark = e.second;
 		}
 
-		st.message = "Undo (" + std::to_string(st.undo.back().size()) + ")";
+		st.message = "Undo " + std::to_string(st.undo.back().size());
 		st.undo.pop_back();
-		st.dirty = true;
 	}
 
 	static void save(State& st)
 	{
-		std::unordered_set<long long> ids = st.hiddenExcluded;
+		std::map<long long, TreeExclusion::Entry> out;
+		std::unordered_set<long long> shown;
 
 		for (auto& t : st.trees)
 		{
-			if (t.excluded)
+			shown.insert(t.id);
+
+			if (t.mark == Mark::Keep)
 			{
-				ids.insert(t.id);
+				continue;
+			}
+
+			auto it = st.fileEntries.find(t.id);
+
+			TreeExclusion::Entry e;
+			e.action = toAction(t.mark);
+			e.note = (it != st.fileEntries.end()) ? it->second.note : "";
+
+			out[t.id] = e;
+		}
+
+		// entries for TreeIDs not in the tree_info CSV are kept as they were
+		for (auto& kv : st.fileEntries)
+		{
+			if (!shown.count(kv.first))
+			{
+				out[kv.first] = kv.second;
 			}
 		}
 
-		saveExcludedIds(st.excludedPath, ids);
+		TreeExclusion::save(st.path, out);
 
-		st.dirty = false;
-		st.message = "Saved " + std::to_string(ids.size()) + " IDs";
+		st.fileEntries = out;
+
+		for (size_t i = 0 ; i < st.trees.size() ; ++i)
+		{
+			st.saved[i] = st.trees[i].mark;
+		}
+
+		st.message = "Saved " + std::to_string(out.size()) + " rows";
+		std::cout << "  Saved " << out.size() << " rows: " << st.path << "\n";
+	}
+
+	// true = quit now
+	static bool requestQuit(State& st)
+	{
+		int unsaved = countUnsaved(st);
+
+		if ((unsaved > 0) && !st.quitArmed)
+		{
+			st.quitArmed = true;
+			st.message = "Unsaved changes: " + std::to_string(unsaved) + " (S = save, Q/Esc again = quit)";
+
+			std::cout << "  ! 저장하지 않은 변경 " << unsaved << "건 - S 로 저장하거나, 한 번 더 누르면 저장하지 않고 종료합니다.\n";
+
+			return false;
+		}
+
+		return true;
 	}
 
 	static void toggleNearest(State& st, int x, int y, const ImageViewer::View& v)
 	{
 		int best = -1;
-		double bestD = 0.0;
+		double bestD = kPickRadius;
 
 		for (int i = 0 ; i < (int)st.trees.size() ; ++i)
 		{
 			cv::Point2f s = toScreen(st.trees[i].px, v);
 			double d = std::hypot(s.x - x, s.y - y);
-			double pick = std::max((double)kPickRadius, st.trees[i].rPx * v.zoom);
 
-			if ((d <= pick) && ((best < 0) || (d < bestD)))
+			if (d <= bestD)
 			{
 				best = i;
 				bestD = d;
@@ -316,14 +333,14 @@ private:
 
 		for (auto& t : st.trees)
 		{
-			if ((t.px.x >= p0.x) && (t.px.x <= p1.x) && (t.px.y >= p0.y) && (t.px.y <= p1.y))
+			if (!t.selected && (t.px.x >= p0.x) && (t.px.x <= p1.x) && (t.px.y >= p0.y) && (t.px.y <= p1.y))
 			{
-				n += t.selected ? 0 : 1;
 				t.selected = true;
+				++n;
 			}
 		}
 
-		st.message = "Rectangle: +" + std::to_string(n) + " selected";
+		st.message = "Rectangle: +" + std::to_string(n);
 	}
 
 	static void selectInLasso(State& st)
@@ -339,14 +356,14 @@ private:
 
 		for (auto& t : st.trees)
 		{
-			if (cv::pointPolygonTest(st.lasso, t.px, false) >= 0)
+			if (!t.selected && (cv::pointPolygonTest(st.lasso, t.px, false) >= 0))
 			{
-				n += t.selected ? 0 : 1;
 				t.selected = true;
+				++n;
 			}
 		}
 
-		st.message = "Lasso: +" + std::to_string(n) + " selected";
+		st.message = "Lasso: +" + std::to_string(n);
 	}
 
 	static bool onMouse(State& st, int event, int x, int y, int flags, const ImageViewer::View& v)
@@ -378,9 +395,11 @@ private:
 			st.downPt = cv::Point(x, y);
 		}
 
-		// Click (not a pan drag): toggle nearest tree, or add a lasso vertex
+		// Click (not a pan drag): lasso vertex or toggle nearest
 		if ((event == cv::EVENT_LBUTTONUP) && (std::abs(x - st.downPt.x) <= kClickSlop) && (std::abs(y - st.downPt.y) <= kClickSlop))
 		{
+			st.quitArmed = false;
+
 			if (st.lassoMode)
 			{
 				st.lasso.push_back(toImage(x, y, v));
@@ -391,31 +410,33 @@ private:
 			}
 		}
 
-		return false;		// let the viewer pan / track the mouse
+		return false;		// the viewer keeps panning / tracking
 	}
 
 	static bool onKey(State& st, int key)
 	{
 		int k = key & 0xFF;
 
-		if ((k == 'q') || (k == 'Q'))
+		if ((k == kEsc) && (st.lassoMode || st.rectActive))
 		{
-			if (st.dirty && !st.quitArmed)
-			{
-				st.quitArmed = true;
-				st.message = "Unsaved changes! S = save, Q again = quit without saving";
+			st.lassoMode = false;
+			st.lasso.clear();
+			st.rectActive = false;
+			st.message = "Cancelled";
 
-				return true;
-			}
+			return true;
+		}
 
-			return false;		// viewer quits
+		if ((k == kEsc) || (k == 'q') || (k == 'Q'))
+		{
+			return !requestQuit(st);		// false -> viewer quits
 		}
 
 		st.quitArmed = false;
 
 		if (key == kDeleteKey)
 		{
-			setExcludedOnSelection(st, true);
+			applyMark(st, Mark::Remove);
 
 			return true;
 		}
@@ -425,16 +446,6 @@ private:
 			undoLast(st);
 
 			return true;
-		}
-
-		if (k == kEsc)
-		{
-			st.lassoMode = false;
-			st.lasso.clear();
-			st.rectActive = false;
-			st.message = "Cancelled";
-
-			return true;		// Esc never quits the editor
 		}
 
 		if (k == kEnter)
@@ -458,11 +469,6 @@ private:
 				st.message = "Lasso: click vertices, Enter = select, Esc = cancel";
 				return true;
 
-			case 'u':
-			case 'U':
-				setExcludedOnSelection(st, false);
-				return true;
-
 			case 'a':
 			case 'A':
 				for (auto& t : st.trees)
@@ -470,6 +476,25 @@ private:
 					t.selected = false;
 				}
 				st.message = "Selection cleared";
+				return true;
+
+			case 'i':
+			case 'I':
+				for (auto& t : st.trees)
+				{
+					t.selected = !t.selected;
+				}
+				st.message = "Selection inverted";
+				return true;
+
+			case 'u':
+			case 'U':
+				applyMark(st, Mark::Keep);
+				return true;
+
+			case 'f':
+			case 'F':
+				applyMark(st, Mark::AutoForest);
 				return true;
 
 			case 's':
@@ -483,50 +508,66 @@ private:
 
 	static void drawOverlay(State& st, cv::Mat& canvas, const ImageViewer::View& v)
 	{
-		const cv::Scalar kKeep(0, 220, 0);
-		const cv::Scalar kDeleted(0, 0, 255);
-		const cv::Scalar kSelected(0, 255, 255);
+		const cv::Scalar kKeepColor(0, 220, 0);
+		const cv::Scalar kRemoveColor(0, 0, 255);
+		const cv::Scalar kForestColor(255, 140, 0);
+		const cv::Scalar kSelectColor(0, 255, 255);
 
 		int W = canvas.cols;
 		int H = canvas.rows;
+		int counts[3] = { 0, 0, 0 };
+		int selected = 0;
 
 		for (auto& t : st.trees)
 		{
-			cv::Point2f s = toScreen(t.px, v);
-			int r = std::max(1, (int)(t.rPx * v.zoom));
+			counts[(int)t.mark] += 1;
+			selected += t.selected ? 1 : 0;
 
-			if ((s.x < -r) || (s.y < -r) || (s.x > W + r) || (s.y > H + r))
+			cv::Point2f s = toScreen(t.px, v);
+			int r = (int)(t.rPx * v.zoom);
+
+			if ((s.x < -r - 4) || (s.y < -r - 4) || (s.x > W + r + 4) || (s.y > H + r + 4))
 			{
 				continue;
 			}
 
 			cv::Point c((int)s.x, (int)s.y);
-			cv::Scalar col = t.excluded ? kDeleted : kKeep;
+			cv::Scalar col = (t.mark == Mark::Remove) ? kRemoveColor : (t.mark == Mark::AutoForest) ? kForestColor : kKeepColor;
+
+			if (r < kMinCrownPx)
+			{
+				cv::circle(canvas, c, 1, col, -1);
+
+				if (t.selected)
+				{
+					cv::circle(canvas, c, 4, kSelectColor, 1);
+				}
+
+				continue;
+			}
 
 			cv::circle(canvas, c, r, col, 1, cv::LINE_AA);
 			cv::circle(canvas, c, 2, col, -1, cv::LINE_AA);
 
-			if (t.excluded)
+			if (t.mark == Mark::Remove)
 			{
 				int d = std::max(3, (int)(r * 0.7));
 
-				cv::line(canvas, c + cv::Point(-d, -d), c + cv::Point(d, d), kDeleted, 2, cv::LINE_AA);
-				cv::line(canvas, c + cv::Point(-d, d), c + cv::Point(d, -d), kDeleted, 2, cv::LINE_AA);
+				cv::line(canvas, c + cv::Point(-d, -d), c + cv::Point(d, d), kRemoveColor, 2, cv::LINE_AA);
+				cv::line(canvas, c + cv::Point(-d, d), c + cv::Point(d, -d), kRemoveColor, 2, cv::LINE_AA);
 			}
 
 			if (t.selected)
 			{
-				cv::circle(canvas, c, r + 3, kSelected, 2, cv::LINE_AA);
+				cv::circle(canvas, c, r + 3, kSelectColor, 2, cv::LINE_AA);
 			}
 		}
 
-		// Rectangle in progress
 		if (st.rectActive)
 		{
-			cv::rectangle(canvas, st.downPt, st.mousePt, kSelected, 1, cv::LINE_AA);
+			cv::rectangle(canvas, st.downPt, st.mousePt, kSelectColor, 1, cv::LINE_AA);
 		}
 
-		// Lasso in progress
 		if (st.lassoMode && !st.lasso.empty())
 		{
 			std::vector<cv::Point> pts;
@@ -537,37 +578,27 @@ private:
 				pts.push_back(cv::Point((int)s.x, (int)s.y));
 			}
 
-			cv::polylines(canvas, pts, false, kSelected, 1, cv::LINE_AA);
-			cv::line(canvas, pts.back(), st.mousePt, kSelected, 1, cv::LINE_AA);
-			cv::line(canvas, st.mousePt, pts.front(), kSelected, 1, cv::LINE_AA);
+			cv::polylines(canvas, pts, false, kSelectColor, 1, cv::LINE_AA);
+			cv::line(canvas, pts.back(), st.mousePt, kSelectColor, 1, cv::LINE_AA);
+			cv::line(canvas, st.mousePt, pts.front(), kSelectColor, 1, cv::LINE_AA);
 
 			for (auto& p : pts)
 			{
-				cv::circle(canvas, p, 3, kSelected, -1, cv::LINE_AA);
+				cv::circle(canvas, p, 3, kSelectColor, -1, cv::LINE_AA);
 			}
 		}
 
-		// Counts panel (below the viewer's zoom / pixel lines)
-		int total = (int)st.trees.size();
-		int deleted = countExcluded(st);
-		int selected = countSelected(st);
+		// Panel below the viewer's Zoom / Px / BGR lines
+		std::string mode = st.lassoMode ? "LASSO (" + std::to_string(st.lasso.size()) + " pts, Enter / Esc)" : st.rectActive ? "RECT" : "NORMAL";
+		int unsaved = countUnsaved(st);
 
 		std::vector<std::string> lines =
 		{
-			"Total " + std::to_string(total) + "   Keep " + std::to_string(total - deleted) + "   Deleted " + std::to_string(deleted) + "   Selected " + std::to_string(selected),
+			"Total " + std::to_string(st.trees.size()) + "  Keep " + std::to_string(counts[(int)Mark::Keep]) + "  Removed " + std::to_string(counts[(int)Mark::Remove])
+				+ "  AutoForest " + std::to_string(counts[(int)Mark::AutoForest]) + "  Selected " + std::to_string(selected),
+			"Mode: " + mode,
+			(unsaved > 0) ? "* unsaved changes: " + std::to_string(unsaved) : "saved",
 		};
-
-		if (!st.hiddenExcluded.empty())
-		{
-			lines.push_back("+ " + std::to_string(st.hiddenExcluded.size()) + " deleted IDs not in trees.json (kept on save)");
-		}
-
-		if (st.lassoMode)
-		{
-			lines.push_back("LASSO: " + std::to_string(st.lasso.size()) + " points  (Enter = select, Esc = cancel)");
-		}
-
-		lines.push_back(st.dirty ? "* unsaved changes (S = save)" : "saved");
 
 		if (!st.message.empty())
 		{
@@ -577,7 +608,7 @@ private:
 		int x = 10;
 		int y = 104;
 		int lineH = 22;
-		cv::Rect box(x - 4, y - 18, 560, (int)lines.size() * lineH + 8);
+		cv::Rect box(x - 4, y - 18, 640, (int)lines.size() * lineH + 8);
 		box &= cv::Rect(0, 0, W, H);
 
 		if ((box.width > 0) && (box.height > 0))
