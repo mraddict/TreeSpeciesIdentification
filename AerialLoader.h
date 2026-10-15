@@ -178,6 +178,56 @@ public:
 		}
 	}
 
+	// Full-resolution BGR window (file pixels), clipped to the image. Empty Mat if the file cannot be read.
+	static cv::Mat readWindow(const std::string& path, const cv::Rect& fileRect, cv::Rect* clipped = nullptr)
+	{
+		CPLSetErrorHandler(CPLQuietErrorHandler);
+
+		GDALDataset* pDS = (GDALDataset*)GDALOpen(path.c_str(), GA_ReadOnly);
+
+		if (!pDS)
+		{
+			return cv::Mat();
+		}
+
+		cv::Rect r = fileRect & cv::Rect(0, 0, pDS->GetRasterXSize(), pDS->GetRasterYSize());
+		cv::Mat bgr;
+
+		if ((r.width > 0) && (r.height > 0))
+		{
+			bgr = cv::Mat(r.height, r.width, CV_8UC3);
+			CPLErr err = CE_None;
+
+			if (pDS->GetRasterCount() >= 3)
+			{
+				int gdalBands[3] = { 3, 2, 1 };		// B, G, R order
+
+				err = pDS->RasterIO(GF_Read, r.x, r.y, r.width, r.height, bgr.data, r.width, r.height, GDT_Byte, 3, gdalBands, 3, (GSpacing)r.width * 3, 1, nullptr);
+			}
+			else
+			{
+				cv::Mat gray(r.height, r.width, CV_8UC1);
+
+				err = pDS->GetRasterBand(1)->RasterIO(GF_Read, r.x, r.y, r.width, r.height, gray.data, r.width, r.height, GDT_Byte, 0, 0, nullptr);
+				cv::cvtColor(gray, bgr, cv::COLOR_GRAY2BGR);
+			}
+
+			if (err != CE_None)
+			{
+				bgr.release();
+			}
+		}
+
+		GDALClose(pDS);
+
+		if (clipped)
+		{
+			*clipped = r;
+		}
+
+		return bgr;
+	}
+
 	// ─── 메타데이터 출력 ───
 	static void printInfo(const AerialPhoto& p)
 	{

@@ -36,6 +36,7 @@ public:
 		std::function<void(cv::Mat& canvas, const View& view)> drawOverlay;							// drawn after the image, before the info text
 		std::function<bool(int event, int x, int y, int flags, const View& view)> onMouse;		// true = consumed (no pan)
 		std::function<bool(int keyEx)> onKey;																	// waitKeyEx code; true = consumed
+		std::function<bool(View& view)> overrideView;														// called every frame; true = use the modified view
 		std::string hint = "R:reset  S:save  ESC:quit";
 		bool printControls = true;
 	};
@@ -77,6 +78,18 @@ public:
 
 		while (true)
 		{
+			if (opt.overrideView)
+			{
+				View v{ s.zoom, s.panX, s.panY };
+
+				if (opt.overrideView(v))
+				{
+					s.zoom = std::min(std::max(v.zoom, opt.minZoom), opt.maxZoom);
+					s.panX = v.panX;
+					s.panY = v.panY;
+				}
+			}
+
 			cv::Mat canvas(opt.windowH, opt.windowW, CV_8UC3, cv::Scalar(30, 30, 30));
 
 			drawImage(canvas, s);

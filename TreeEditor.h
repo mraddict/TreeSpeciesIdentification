@@ -11,6 +11,9 @@
 //          A = clear selection, I = invert selection
 //          Delete = remove, U = keep, F = auto_forest, Ctrl+Z = undo
 //          S = save, R = reset view, Q / Esc = quit (press twice if unsaved)
+//  Review: X = show removed trees only / all
+//          N / P = next / previous removed tree (order of the file at start); centred, zoomed and selected,
+//                  drawn from the full-resolution file when aerialPath is given. U restores it.
 // ----------------------------------------------------------------------------------------------------------------------------
 
 #include "ImageViewer.h"
@@ -26,11 +29,14 @@ class TreeEditor
 public:
 
 	// aerial : image + GeoTransform (may be a downscaled load), trees : coordinates in the aerial CRS, TreeID without offset
-	static void run(const AerialPhoto& aerial, const std::vector<TreePoint>& trees, const std::string& exclusionPath, const std::string& title)
+	// aerialPath : original file for full-resolution close-ups in review (N / P); empty = downscaled image only
+	static void run(const AerialPhoto& aerial, const std::vector<TreePoint>& trees, const std::string& exclusionPath, const std::string& title, const std::string& aerialPath = "")
 	{
 		State st;
 		st.path = exclusionPath;
 		st.fileEntries = TreeExclusion::load(exclusionPath);
+		st.aerialPath = aerialPath;
+		st.loadScale = (aerial.loadScale > 0.0) ? aerial.loadScale : 1.0;
 
 		double gt[6] = { aerial.originX, aerial.pixelW, aerial.rotationX, aerial.originY, aerial.rotationY, aerial.pixelH };
 		double igt[6];
@@ -49,6 +55,8 @@ public:
 			t.id = tp.treeId;
 			t.px = cv::Point2f((float)(igt[0] + igt[1] * tp.x + igt[2] * tp.y), (float)(igt[3] + igt[4] * tp.x + igt[5] * tp.y));
 			t.rPx = (float)std::max(0.5, tp.crownD * 0.5 * pixPerMeter);
+			t.height = (float)tp.height;
+			t.crownD = (float)tp.crownD;
 
 			auto it = st.fileEntries.find(tp.treeId);
 
@@ -66,16 +74,25 @@ public:
 		for (size_t i = 0 ; i < st.trees.size() ; ++i)
 		{
 			st.saved[i] = st.trees[i].mark;
+
+			if (st.trees[i].mark == Mark::Remove)
+			{
+				st.reviewList.push_back((int)i);
+			}
 		}
 
 		ImageViewer::Options opt;
 		opt.title = title;
 		opt.printControls = false;
-		opt.hint = "Click  Shift+drag  L:lasso  A:clear  I:invert  Del:remove  U:keep  F:auto_forest  Ctrl+Z:undo  S:save  R:reset  Q:quit";
+		opt.hint = "Click  Shift+drag  L:lasso  A:clear  I:invert  Del:remove  U:keep  F:auto_forest  Ctrl+Z:undo  S:save  X:removed only  N/P:next/prev  R:reset  Q:quit";
+
+		st.windowW = opt.windowW;
+		st.windowH = opt.windowH;
 
 		opt.drawOverlay = [&st](cv::Mat& canvas, const ImageViewer::View& v) { drawOverlay(st, canvas, v); };
 		opt.onMouse = [&st](int event, int x, int y, int flags, const ImageViewer::View& v) { return onMouse(st, event, x, y, flags, v); };
 		opt.onKey = [&st](int key) { return onKey(st, key); };
+		opt.overrideView = [&st](ImageViewer::View& v) { return focusView(st, v); };
 
 		std::cout << "=== Tree editor ===\n"
 			<< "  Trees: " << st.trees.size() << ", restored from file: " << restored << " (" << exclusionPath << ")\n"
@@ -86,6 +103,8 @@ public:
 			<< "  A / I         : clear / invert selection\n"
 			<< "  Delete / U / F: remove / keep / auto_forest,  Ctrl+Z: undo\n"
 			<< "  S             : save\n"
+			<< "  X             : show removed trees only / all\n"
+			<< "  N / P         : next / previous removed tree (" << st.reviewList.size() << "), zoomed" << (aerialPath.empty() ? "" : " at full resolution") << ", U = restore\n"
 			<< "  Q / Esc       : quit (press twice if there are unsaved changes)\n";
 
 		ImageViewer::show(aerial.image, opt);
@@ -112,6 +131,8 @@ private:
 		long long id = -1;
 		cv::Point2f px;						// image pixel (of the loaded, possibly downscaled, image)
 		float rPx = 1.0f;					// crown radius in image pixels
+		float height = 0.0f;				// m
+		float crownD = 0.0f;				// m
 		Mark mark = Mark::Keep;
 		bool selected = false;
 	};
@@ -133,6 +154,19 @@ private:
 		bool lassoMode = false;
 		std::vector<cv::Point2f> lasso;					// image pixels
 
+		// review
+		bool removedOnly = false;							// X: draw / pick removed trees only
+		std::vector<int> reviewList;						// tree indices marked remove at start (N / P order)
+		int reviewPos = -1;
+		bool focusPending = false;							// centre the view on reviewList[reviewPos] next frame
+		int windowW = 1280;
+		int windowH = 960;
+
+		std::string aerialPath;							// original file for close-ups
+		double loadScale = 1.0;								// loaded image / file
+		cv::Mat hires;										// full-resolution window around the current review tree
+		cv::Rect2f hiresRect;								// its extent in loaded-image pixels
+
 		std::string message;
 	};
 
@@ -144,6 +178,8 @@ private:
 	static constexpr int kPickRadius = 15;				// px on screen
 	static constexpr int kMinCrownPx = 3;				// below this screen radius only the center dot is drawn
 	static constexpr size_t kUndoLimit = 1000;
+	static constexpr double kFocusZoom = 8.0;				// screen px per loaded-image px for N / P (1/4 load: 2x the original)
+	static constexpr int kHiresHalf = 768;				// full-resolution window half size (file px) read for N / P
 
 	static Mark fromAction(const std::string& action)
 	{
@@ -173,6 +209,108 @@ private:
 	static cv::Point2f toImage(int x, int y, const ImageViewer::View& v)
 	{
 		return cv::Point2f((float)((x - v.panX) / v.zoom), (float)((y - v.panY) / v.zoom));
+	}
+
+	// X mode hides (and makes unpickable) everything but removed trees
+	static bool isVisible(const State& st, const Tree& t)
+	{
+		return !st.removedOnly || (t.mark == Mark::Remove);
+	}
+
+	// N / P: move through reviewList, select only that tree, centre on it next frame
+	static void stepReview(State& st, int dir)
+	{
+		if (st.reviewList.empty())
+		{
+			st.message = "No removed trees to review";
+
+			return;
+		}
+
+		int n = (int)st.reviewList.size();
+		st.reviewPos = (st.reviewPos < 0) ? ((dir > 0) ? 0 : n - 1) : (st.reviewPos + dir + n) % n;
+
+		for (auto& t : st.trees)
+		{
+			t.selected = false;
+		}
+
+		Tree& t = st.trees[st.reviewList[st.reviewPos]];
+		t.selected = true;
+		st.focusPending = true;
+
+		loadHires(st, t);
+
+		st.message = "Review " + std::to_string(st.reviewPos + 1) + "/" + std::to_string(n) + (st.hires.empty() ? "  (downscaled image)" : "  (full resolution)");
+	}
+
+	static void loadHires(State& st, const Tree& t)
+	{
+		st.hires.release();
+
+		if (st.aerialPath.empty())
+		{
+			return;
+		}
+
+		double inv = 1.0 / st.loadScale;
+		int fx = (int)std::lround(t.px.x * inv);
+		int fy = (int)std::lround(t.px.y * inv);
+		cv::Rect r;
+
+		st.hires = AerialLoader::readWindow(st.aerialPath, cv::Rect(fx - kHiresHalf, fy - kHiresHalf, kHiresHalf * 2, kHiresHalf * 2), &r);
+		st.hiresRect = cv::Rect2f((float)(r.x * st.loadScale), (float)(r.y * st.loadScale), (float)(r.width * st.loadScale), (float)(r.height * st.loadScale));
+	}
+
+	static bool focusView(State& st, ImageViewer::View& v)
+	{
+		if (!st.focusPending || (st.reviewPos < 0))
+		{
+			return false;
+		}
+
+		st.focusPending = false;
+
+		const Tree& t = st.trees[st.reviewList[st.reviewPos]];
+		v.zoom = kFocusZoom;
+		v.panX = st.windowW * 0.5 - t.px.x * v.zoom;
+		v.panY = st.windowH * 0.5 - t.px.y * v.zoom;
+
+		return true;
+	}
+
+	// Full-resolution window drawn over the downscaled image (only the part on screen)
+	static void drawHires(const State& st, cv::Mat& canvas, const ImageViewer::View& v)
+	{
+		if (st.hires.empty())
+		{
+			return;
+		}
+
+		cv::Point2f s0 = toScreen(st.hiresRect.tl(), v);
+		cv::Point2f s1 = toScreen(st.hiresRect.br(), v);
+		cv::Rect dst((int)std::floor(s0.x), (int)std::floor(s0.y), (int)std::ceil(s1.x - s0.x), (int)std::ceil(s1.y - s0.y));
+		cv::Rect vis = dst & cv::Rect(0, 0, canvas.cols, canvas.rows);
+
+		if ((vis.width <= 0) || (vis.height <= 0) || (dst.width <= 0) || (dst.height <= 0))
+		{
+			return;
+		}
+
+		// source sub-rect of hires matching the visible part
+		double sx = (double)st.hires.cols / dst.width;
+		double sy = (double)st.hires.rows / dst.height;
+		cv::Rect src((int)((vis.x - dst.x) * sx), (int)((vis.y - dst.y) * sy), std::max(1, (int)std::ceil(vis.width * sx)), std::max(1, (int)std::ceil(vis.height * sy)));
+		src &= cv::Rect(0, 0, st.hires.cols, st.hires.rows);
+
+		if ((src.width <= 0) || (src.height <= 0))
+		{
+			return;
+		}
+
+		cv::Mat part;
+		cv::resize(st.hires(src), part, vis.size(), 0, 0, (sx < 1.0) ? cv::INTER_LINEAR : cv::INTER_AREA);
+		part.copyTo(canvas(vis));
 	}
 
 	static int countUnsaved(const State& st)
@@ -308,6 +446,11 @@ private:
 
 		for (int i = 0 ; i < (int)st.trees.size() ; ++i)
 		{
+			if (!isVisible(st, st.trees[i]))
+			{
+				continue;
+			}
+
 			cv::Point2f s = toScreen(st.trees[i].px, v);
 			double d = std::hypot(s.x - x, s.y - y);
 
@@ -333,7 +476,7 @@ private:
 
 		for (auto& t : st.trees)
 		{
-			if (!t.selected && (t.px.x >= p0.x) && (t.px.x <= p1.x) && (t.px.y >= p0.y) && (t.px.y <= p1.y))
+			if (!t.selected && isVisible(st, t) && (t.px.x >= p0.x) && (t.px.x <= p1.x) && (t.px.y >= p0.y) && (t.px.y <= p1.y))
 			{
 				t.selected = true;
 				++n;
@@ -356,7 +499,7 @@ private:
 
 		for (auto& t : st.trees)
 		{
-			if (!t.selected && (cv::pointPolygonTest(st.lasso, t.px, false) >= 0))
+			if (!t.selected && isVisible(st, t) && (cv::pointPolygonTest(st.lasso, t.px, false) >= 0))
 			{
 				t.selected = true;
 				++n;
@@ -482,9 +625,31 @@ private:
 			case 'I':
 				for (auto& t : st.trees)
 				{
-					t.selected = !t.selected;
+					t.selected = isVisible(st, t) && !t.selected;
 				}
 				st.message = "Selection inverted";
+				return true;
+
+			case 'x':
+			case 'X':
+				st.removedOnly = !st.removedOnly;
+
+				// hidden trees must not stay selected (Delete / U / F act on the selection)
+				for (auto& t : st.trees)
+				{
+					t.selected = t.selected && isVisible(st, t);
+				}
+				st.message = st.removedOnly ? "Showing removed trees only" : "Showing all trees";
+				return true;
+
+			case 'n':
+			case 'N':
+				stepReview(st, +1);
+				return true;
+
+			case 'p':
+			case 'P':
+				stepReview(st, -1);
 				return true;
 
 			case 'u':
@@ -518,10 +683,17 @@ private:
 		int counts[3] = { 0, 0, 0 };
 		int selected = 0;
 
+		drawHires(st, canvas, v);
+
 		for (auto& t : st.trees)
 		{
 			counts[(int)t.mark] += 1;
 			selected += t.selected ? 1 : 0;
+
+			if (!isVisible(st, t))
+			{
+				continue;
+			}
 
 			cv::Point2f s = toScreen(t.px, v);
 			int r = (int)(t.rPx * v.zoom);
@@ -596,9 +768,19 @@ private:
 		{
 			"Total " + std::to_string(st.trees.size()) + "  Keep " + std::to_string(counts[(int)Mark::Keep]) + "  Removed " + std::to_string(counts[(int)Mark::Remove])
 				+ "  AutoForest " + std::to_string(counts[(int)Mark::AutoForest]) + "  Selected " + std::to_string(selected),
-			"Mode: " + mode,
+			"Mode: " + mode + (st.removedOnly ? "   [X] removed only" : ""),
 			(unsaved > 0) ? "* unsaved changes: " + std::to_string(unsaved) : "saved",
 		};
+
+		if (st.reviewPos >= 0)
+		{
+			const Tree& t = st.trees[st.reviewList[st.reviewPos]];
+			const char* state = (t.mark == Mark::Remove) ? "remove" : (t.mark == Mark::AutoForest) ? "auto_forest" : "keep";
+			char buf[160];
+
+			sprintf_s(buf, "Review %d/%d  TreeID %lld  H %.1f m  CrownD %.1f m  [%s]", st.reviewPos + 1, (int)st.reviewList.size(), t.id, t.height, t.crownD, state);
+			lines.insert(lines.begin() + 1, buf);
+		}
 
 		if (!st.message.empty())
 		{
@@ -608,7 +790,7 @@ private:
 		int x = 10;
 		int y = 104;
 		int lineH = 22;
-		cv::Rect box(x - 4, y - 18, 640, (int)lines.size() * lineH + 8);
+		cv::Rect box(x - 4, y - 18, 780, (int)lines.size() * lineH + 8);
 		box &= cv::Rect(0, 0, W, H);
 
 		if ((box.width > 0) && (box.height > 0))

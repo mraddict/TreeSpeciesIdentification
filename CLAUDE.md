@@ -27,7 +27,13 @@ TreeSpeciesIdentification.exe --experiment edit <config> <course>
   - L: 올가미 시작 → 클릭으로 꼭짓점 추가 → Enter 확정(선택 추가) / Esc 취소
   - A: 선택 해제, I: 선택 반전
   - Delete: 선택 → remove, U: 선택 → 유지, F: 선택 → auto_forest, Ctrl+Z: 마지막 편집 취소 (최대 1000단계, 선택 변경은 대상 아님)
+  - 검토: X: remove 된 나무만 표시/전체 토글(숨긴 나무는 선택 불가), N/P: 시작 시점 remove 목록을 순서대로 이동(중앙·줌 8, 그 나무만 선택, 원본 해상도 1536px 창을 GDAL 로 읽어 겹쳐 그림), 좌상단에 TreeID/수고/수관직경/현재 상태. U 로 되살리기
   - S: 저장. Q/Esc: 종료 — 저장 안 된 변경이 있으면 콘솔에 "저장하지 않은 변경 N건" 경고 후 한 번 더 눌러야 종료
+TreeSpeciesIdentification.exe --experiment review <config> <course>
+- review: tree_info_excluded 의 remove 가 맞는지 검토용 산출물 (출력 out\<course>\, auto_forest 는 유지로 집계)
+  - review_overview.jpg (1/4, remove=빨강 원+X, 유지=얇은 녹색 원), review_tile_01~06.jpg (원본 1536px, 1536px 그리드에서 remove 많은 칸의 remove 중심, 좌상단에 중심 좌표 EPSG:5179 + 타일 내 remove/유지 수)
+  - review_excluded_sheet_NN.jpg (remove 전부, TreeID 순, 96x96 20열 400개/장), review_kept_sheet.jpg (유지 무작위 400, seed 42). 썸네일은 features_dino.csv ImagePath 의 크롭, 없으면 항공사진에서 잘라냄(TreeID 노란색)
+  - review_summary.txt: 수고/수관직경 분포, InsideForest 비율, 그리드 상위 10칸(remove/전체, 90% 이상이면 block)
 - 제외 파일: tree_info 옆 <course>_tree_info_excluded.csv (config 코스 항목 "tree_exclude" 로 경로 지정 가능)
   - 헤더 TreeID,action,note. TreeID 는 tree_info 원본 ID(코스 오프셋 미적용). action = remove | auto_forest, note 는 사유용
   - 편집기 시작 시 읽어서 상태 복원. tree_info 에 없는 ID 행과 note 는 저장 시 보존
