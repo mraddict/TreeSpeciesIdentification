@@ -605,6 +605,9 @@ private:
 	OGRCoordinateTransformation* ct_ = nullptr;
 };
 
+// TreeIDs (without offset) with InsideForest == Y in a features_*.csv (defined after loadFeatureRows)
+static std::unordered_set<long long> insideForestIdsOf(const std::string& path, const std::string& courseName, long long treeIdOffset);
+
 // Per-course counts collected by prepare (-1 = not run)
 struct CourseRunStats
 {
@@ -643,6 +646,27 @@ static int exportCourse(const std::string& configPath, const std::string& outDir
 	std::unordered_set<long long> noImageIds = TreeExclusion::noImageIds(exclusion);
 
 	std::cout << "  tree_info_excluded: " << TreeExclusion::countText(exclusion) << "\n";
+
+	// InsideForest decides forest (track A, forest_trees.json) vs auto_forest for trees that are not in the file
+	std::unordered_set<long long> insideForestIds;			// TreeID without offset
+	std::string dinoPath = TSICommon::join(outDir, "features_dino.csv");
+
+	if (TSICommon::exists(dinoPath))
+	{
+		insideForestIds = insideForestIdsOf(dinoPath, courseName, course->treeIdOffset);
+	}
+	else
+	{
+		std::cout << "  ! " << dinoPath << " not found - InsideForest unknown, every tree not in the file is auto_forest\n";
+	}
+
+	auto isForestState = [&](long long id)
+	{
+		auto e = exclusion.find(id);
+		bool inFile = (e != exclusion.end()) && (e->second.action != TreeExclusion::kAutoForest);
+
+		return !inFile && insideForestIds.count(id);
+	};
 
 	// 2. Every kept tree, or the ones inside courseBoundary if the config sets it
 	std::vector<const TreePoint*> selected;
@@ -715,7 +739,6 @@ static int exportCourse(const std::string& configPath, const std::string& outDir
 	}
 
 	std::unordered_map<long long, std::vector<std::string>> embeddings;
-	std::string dinoPath = TSICommon::join(outDir, "features_dino.csv");
 
 	if (!wanted.empty())
 	{
@@ -751,9 +774,21 @@ static int exportCourse(const std::string& configPath, const std::string& outDir
 		throw std::runtime_error("Failed to create: " + jsonPath);
 	}
 
+	std::string forestPath = TSICommon::join(courseDir, "forest_trees.json");
+	std::ofstream ofsForest(forestPath, std::ios::binary);
+
+	if (!ofsForest.is_open())
+	{
+		ForestLoader::release(forest);
+
+		throw std::runtime_error("Failed to create: " + forestPath);
+	}
+
 	ofs << std::fixed << "[\n";
+	ofsForest << std::fixed << "[\n";
 
 	int written = 0;
+	int forestWritten = 0;
 	int reviewWritten = 0;
 	int reviewNoEmbedding = 0;
 	int noImageWritten = 0;
@@ -766,6 +801,38 @@ static int exportCourse(const std::string& configPath, const std::string& outDir
 
 		for (auto* tp : selected)
 		{
+			// forest (track A): not in the file and inside the forest map -> forest_trees.json only
+			if (isForestState(tp->treeId))
+			{
+				std::string code;
+				double dist = -1.0;
+				bool found = lookup.nearest(tp->x, tp->y, code, dist);
+
+				if (forestWritten > 0)
+				{
+					ofsForest << ",\n";
+				}
+
+				ofsForest << "  {\"id\": " << tp->treeId
+					<< ", \"x\": " << std::setprecision(3) << tp->x
+					<< ", \"y\": " << tp->y
+					<< ", \"height\": " << std::setprecision(2) << tp->height
+					<< ", \"crownD\": " << tp->crownD;
+
+				if (found)
+				{
+					ofsForest << ", \"species_code\": \"" << code << "\", \"asset\": \"" << SpeciesCodes::asset(code) << "\"}";
+				}
+				else
+				{
+					ofsForest << ", \"species_code\": null, \"asset\": null}";
+				}
+
+				++forestWritten;
+
+				continue;
+			}
+
 			if (written > 0)
 			{
 				ofs << ",\n";
@@ -841,10 +908,16 @@ static int exportCourse(const std::string& configPath, const std::string& outDir
 
 	ofs << "\n]\n";
 	ofs.close();
+	ofsForest << "\n]\n";
+	ofsForest.close();
 
 	int autoWritten = written - reviewWritten;
+	int removedCount = (int)TreeExclusion::removedIds(exclusion).size();
 
+	std::cout << "  forest " << forestWritten << " / auto_forest " << (autoWritten - noImageWritten) << " / review " << reviewWritten
+		<< " / no_image " << noImageWritten << " / remove " << removedCount << " (remove: rows in the file)\n";
 	std::cout << "  Written: " << written << " trees -> " << jsonPath << " (review " << reviewWritten << ", auto_forest " << autoWritten << " incl. no_image " << noImageWritten << ")\n";
+	std::cout << "  Written: " << forestWritten << " trees -> " << forestPath << " (forest, track A)\n";
 	std::cout << "  auto_forest confidence: inside polygon " << autoCount[0] << " (" << kNoImageConfInside << "), <= " << kNoImageNearDist << " m " << autoCount[1]
 		<< " (" << kNoImageConfNear << "), farther " << autoCount[2] << " (" << kNoImageConfFar << "), no species polygon " << autoCount[3] << " (0)\n";
 
@@ -978,6 +1051,21 @@ static std::unordered_map<long long, FeatureRowInfo> loadFeatureRows(const std::
 	}
 
 	return result;
+}
+
+static std::unordered_set<long long> insideForestIdsOf(const std::string& path, const std::string& courseName, long long treeIdOffset)
+{
+	std::unordered_set<long long> ids;
+
+	for (auto& kv : loadFeatureRows(path, courseName))
+	{
+		if (kv.second.insideForest)
+		{
+			ids.insert(kv.first - treeIdOffset);
+		}
+	}
+
+	return ids;
 }
 
 // TreeID (global, offset applied) -> InsideForest, for the course's rows in features_dino.csv
@@ -2083,7 +2171,7 @@ int runPrepare(const std::string& configPath, const std::string& outDir, const s
 	ss << "  no_image  : action == no_image (kept, image unusable, not trained; exported as auto_forest)\n";
 	ss << "  review    : action == review (exported as mode review)\n";
 	ss << "  forest(Y) : kept trees with InsideForest == Y and a usable image (features_dino.csv)\n";
-	ss << "  export    : trees.json = every kept tree (review + auto_forest), or the ones inside courseBoundary\n";
+	ss << "  export    : trees.json = review + auto_forest + no_image (forest-state trees go to forest_trees.json)\n";
 
 	std::string text = ss.str();
 	std::string path = TSICommon::join(outDir, "prepare_summary.txt");

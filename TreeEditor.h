@@ -14,7 +14,8 @@
 //          C = toggle clearSelectionAfterAction (default on: Delete / U / R clear the selection)
 //          S = save, Home = reset view, Q / Esc = quit (press twice if unsaved)
 //  B     = select removed trees inside the forest map (InsideForest == Y; scope = rect / lasso area, otherwise all)
-//  Review: X = show removed trees only / all
+//  Display (never written): a tree not in the file is drawn as forest (InsideForest Y, olive) or auto_forest (blue)
+//  View:   X = all -> forest hidden -> review only -> all
 //          N / P = next / previous removed tree (order of the file at start); centred, zoomed and selected,
 //                  drawn from the full-resolution file when aerialPath is given. U returns it to auto_forest.
 //  Assist: V = add "bright, low saturation" auto_forest trees to the selection (never changes marks)
@@ -128,7 +129,8 @@ public:
 			<< "  C             : clear selection after Delete/U/R on/off (now " << (st.clearSelectionAfterAction ? "on" : "off") << ")\n"
 			<< "  B             : select removed trees inside the forest map (rect/lasso area, otherwise all)" << (st.hasForestFlags ? "" : " - no InsideForest flags") << "\n"
 			<< "  S             : save\n"
-			<< "  X             : show removed trees only / all\n"
+			<< "  X             : view all -> forest hidden -> review only -> all\n"
+			<< "  Colours       : olive = forest (not in file, InsideForest Y), blue = auto_forest (not in file, outside), thick green = review, gray = no_image, red X = remove\n"
 			<< "  N / P         : next / previous removed tree (" << st.reviewList.size() << "), zoomed" << (aerialPath.empty() ? "" : " at full resolution") << ", U = restore\n"
 			<< "  V             : add bright, low-saturation auto_forest trees in the rect/lasso area (or screen) to the selection\n"
 			<< "  [ / ]  { / }  : bright min -/+ 5,  saturation max -/+ 5 (HSV 0-255)\n"
@@ -154,6 +156,23 @@ private:
 		NoImage,
 		Review,
 		Count
+	};
+
+	enum class Shown
+	{
+		Forest,
+		AutoForest,
+		Review,
+		NoImage,
+		Remove,
+		Count
+	};
+
+	enum class ViewMode
+	{
+		All,
+		HideForest,
+		ReviewOnly
 	};
 
 	struct Tree
@@ -187,7 +206,7 @@ private:
 		std::vector<cv::Point2f> lasso;					// image pixels
 
 		// review
-		bool removedOnly = false;							// X: draw / pick removed trees only
+		ViewMode viewMode = ViewMode::All;					// X: all -> forest hidden -> review only
 		std::vector<int> reviewList;						// tree indices marked remove at start (N / P order)
 		int reviewPos = -1;
 		bool focusPending = false;							// centre the view on reviewList[reviewPos] next frame
@@ -276,10 +295,33 @@ private:
 		return cv::Point2f((float)((x - v.panX) / v.zoom), (float)((y - v.panY) / v.zoom));
 	}
 
-	// X mode hides (and makes unpickable) everything but removed trees
+	// Display state (never written): a tree that is not in the file is "forest" inside the forest map
+	// (InsideForest == Y, track A) and "auto_forest" outside it (or unknown)
+	static Shown shownOf(const Tree& t)
+	{
+		switch (t.mark)
+		{
+			case Mark::Remove:	return Shown::Remove;
+			case Mark::NoImage:	return Shown::NoImage;
+			case Mark::Review:	return Shown::Review;
+			default:			return (t.forest == 1) ? Shown::Forest : Shown::AutoForest;
+		}
+	}
+
+	// X cycles all -> forest hidden -> review only; hidden trees cannot be picked
 	static bool isVisible(const State& st, const Tree& t)
 	{
-		return !st.removedOnly || (t.mark == Mark::Remove);
+		switch (st.viewMode)
+		{
+			case ViewMode::HideForest:	return shownOf(t) != Shown::Forest;
+			case ViewMode::ReviewOnly:	return shownOf(t) == Shown::Review;
+			default:					return true;
+		}
+	}
+
+	static const char* viewModeName(ViewMode m)
+	{
+		return (m == ViewMode::HideForest) ? "forest hidden" : (m == ViewMode::ReviewOnly) ? "review only" : "all";
 	}
 
 	// N / P: move through reviewList, select only that tree, centre on it next frame
@@ -938,14 +980,14 @@ private:
 
 			case 'x':
 			case 'X':
-				st.removedOnly = !st.removedOnly;
+				st.viewMode = (st.viewMode == ViewMode::All) ? ViewMode::HideForest : (st.viewMode == ViewMode::HideForest) ? ViewMode::ReviewOnly : ViewMode::All;
 
 				// hidden trees must not stay selected (Delete / U / R act on the selection)
 				for (auto& t : st.trees)
 				{
 					t.selected = t.selected && isVisible(st, t);
 				}
-				st.message = st.removedOnly ? "Showing removed trees only" : "Showing all trees";
+				st.message = std::string("View: ") + viewModeName(st.viewMode);
 				return true;
 
 			case 'n':
@@ -974,7 +1016,8 @@ private:
 
 	static void drawOverlay(State& st, cv::Mat& canvas, const ImageViewer::View& v)
 	{
-		const cv::Scalar kAutoColor(0, 190, 0);				// auto_forest (default): thin green
+		const cv::Scalar kForestColor(0, 128, 128);			// forest (not in file, InsideForest Y): olive
+		const cv::Scalar kAutoColor(255, 140, 0);				// auto_forest (not in file, outside the forest map): blue
 		const cv::Scalar kReviewColor(0, 255, 0);				// review: thick bright green
 		const cv::Scalar kRemoveColor(0, 0, 255);
 		const cv::Scalar kNoImageColor(170, 170, 170);
@@ -982,8 +1025,9 @@ private:
 
 		int W = canvas.cols;
 		int H = canvas.rows;
-		int counts[(int)Mark::Count] = {};
-		int selCounts[(int)Mark::Count] = {};		// selected trees by mark
+		int shownCounts[(int)Shown::Count] = {};
+		int selShown[(int)Shown::Count] = {};		// selected trees by display state
+		int selCounts[(int)Mark::Count] = {};		// selected trees by mark (what each key would change)
 		int selected = 0;
 
 		st.lastView = v;
@@ -992,7 +1036,9 @@ private:
 
 		for (auto& t : st.trees)
 		{
-			counts[(int)t.mark] += 1;
+			Shown sh = shownOf(t);
+			shownCounts[(int)sh] += 1;
+			selShown[(int)sh] += t.selected ? 1 : 0;
 			selected += t.selected ? 1 : 0;
 			selCounts[(int)t.mark] += t.selected ? 1 : 0;
 
@@ -1010,7 +1056,7 @@ private:
 			}
 
 			cv::Point c((int)s.x, (int)s.y);
-			cv::Scalar col = (t.mark == Mark::Remove) ? kRemoveColor : (t.mark == Mark::NoImage) ? kNoImageColor : (t.mark == Mark::Review) ? kReviewColor : kAutoColor;
+			cv::Scalar col = (sh == Shown::Remove) ? kRemoveColor : (sh == Shown::NoImage) ? kNoImageColor : (sh == Shown::Review) ? kReviewColor : (sh == Shown::Forest) ? kForestColor : kAutoColor;
 
 			if (r < kMinCrownPx)
 			{
@@ -1086,13 +1132,14 @@ private:
 
 		std::vector<std::string> lines =
 		{
-			"Total " + std::to_string(st.trees.size()) + "   auto_forest " + std::to_string(counts[(int)Mark::Auto]) + "   remove " + std::to_string(counts[(int)Mark::Remove])
-				+ "   no_image " + std::to_string(counts[(int)Mark::NoImage]) + "   review " + std::to_string(counts[(int)Mark::Review]) + "   Selected " + std::to_string(selected),
-			"Selected: auto_forest " + std::to_string(selCounts[(int)Mark::Auto]) + " / remove " + std::to_string(selCounts[(int)Mark::Remove])
-				+ " / no_image " + std::to_string(selCounts[(int)Mark::NoImage]) + " / review " + std::to_string(selCounts[(int)Mark::Review])
+			"Total " + std::to_string(st.trees.size()) + "   forest " + std::to_string(shownCounts[(int)Shown::Forest]) + "   auto_forest " + std::to_string(shownCounts[(int)Shown::AutoForest])
+				+ "   review " + std::to_string(shownCounts[(int)Shown::Review]) + "   no_image " + std::to_string(shownCounts[(int)Shown::NoImage])
+				+ "   remove " + std::to_string(shownCounts[(int)Shown::Remove]) + "   Selected " + std::to_string(selected),
+			"Selected: forest " + std::to_string(selShown[(int)Shown::Forest]) + " / auto_forest " + std::to_string(selShown[(int)Shown::AutoForest])
+				+ " / review " + std::to_string(selShown[(int)Shown::Review]) + " / no_image " + std::to_string(selShown[(int)Shown::NoImage]) + " / remove " + std::to_string(selShown[(int)Shown::Remove])
 				+ "   (Del -> no_image " + std::to_string(selected - selCounts[(int)Mark::NoImage]) + ", Shift+Del -> remove " + std::to_string(selected - selCounts[(int)Mark::Remove])
-				+ ", R -> review " + std::to_string(selected - selCounts[(int)Mark::Review]) + ", U -> auto " + std::to_string(selected - selCounts[(int)Mark::Auto]) + ")",
-			"Mode: " + mode + (st.removedOnly ? "   [X] removed only" : "") + "   clearSelectionAfterAction = " + (st.clearSelectionAfterAction ? "true" : "false") + " (C)",
+				+ ", R -> review " + std::to_string(selected - selCounts[(int)Mark::Review]) + ", U -> forest/auto " + std::to_string(selected - selCounts[(int)Mark::Auto]) + ")",
+			"Mode: " + mode + "   View (X): " + viewModeName(st.viewMode) + "   clearSelectionAfterAction = " + (st.clearSelectionAfterAction ? "true" : "false") + " (C)",
 			(unsaved > 0) ? "* unsaved changes: " + std::to_string(unsaved) : "saved",
 			"V select: bright >= " + std::to_string(st.brightMin) + "  sat <= " + std::to_string(st.satMax)
 				+ "   ([ ] bright, { } sat)   scope: " + (st.region.empty() ? std::string("screen") : st.regionKind),

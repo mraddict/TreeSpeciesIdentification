@@ -12,7 +12,9 @@ TreeSpeciesIdentification.exe                     기존 파이프라인
 TreeSpeciesIdentification.exe experiment extract <config> out\ <onnx>
 TreeSpeciesIdentification.exe experiment eval|sweep|lidar out\
 TreeSpeciesIdentification.exe --experiment export <config> out\ <course>
-- export: out\<course>\trees.json 생성 — remove 를 뺀 모든 나무 (config "courseBoundary" SHP 가 있으면 그 안만)
+- export: remove 를 뺀 나무를 두 파일로 (config "courseBoundary" SHP 가 있으면 그 안만). 로그 "forest N / auto_forest N / review N / no_image N / remove N"
+  - out\<course>\forest_trees.json (트랙 A): 파일에 없고 InsideForest==Y(out\features_dino.csv) 인 나무 — id, x, y, height, crownD, species_code, asset (임상도 최근접 수종 폴리곤)
+  - out\<course>\trees.json: 나머지 (파일에 없고 임상도 밖/모름 = auto_forest, no_image, review). no_image·review 는 임상도 안이어도 여기
   - 공통 필드: id(tree_info TreeID, 코스 오프셋 미적용), x, y(EPSG:5179), height, crownD, embedding, mode, suggested, source, confidence
   - review: mode="review", embedding[384](out\features_dino.csv, 없으면 null), suggested=null, source=null, confidence=0
   - 나머지(파일에 없음 = auto_forest 기본값, 명시 auto_forest, no_image): mode="auto_forest", embedding=null,
@@ -24,19 +26,21 @@ TreeSpeciesIdentification.exe --experiment render <config> out\ <course> [--skip
 TreeSpeciesIdentification.exe --experiment edit <config> <course>
 - edit: tree_info 의 모든 나무를 항공사진 위에 표시하고 action 을 지정하는 편집기 (TreeEditor.h, ImageViewer 기반)
   - 항공사진은 GDAL 로 1/4 축소본만 로드. 원본 tree_info CSV 는 절대 수정하지 않음
-  - 색: 얇은 녹색=auto_forest(기본값, 파일에 없음), 굵은 밝은 녹색=review, 빨강+X=remove, 회색=no_image, 노란 테두리=선택. 줌이 작으면 점만 표시
-  - 좌상단: 전체 / auto_forest / remove / no_image / review / 선택 수, "Selected: ... (Del -> no_image a, Shift+Del -> remove b, R -> review c, U -> auto d)" (각 키가 실제로 바꿀 그루 수), 모드 + clearSelectionAfterAction 값, 저장 안 된 변경 수, 줌
+  - 표시 전용 상태 (파일에 쓰지 않음): 파일에 없는 나무는 InsideForest==Y 면 forest(올리브), 아니면 auto_forest(파랑). 파일에 있으면 action 그대로
+  - 색: 올리브=forest, 파랑=auto_forest, 굵은 밝은 녹색=review, 빨강+X=remove, 회색=no_image, 노란 테두리=선택. 줌이 작으면 점만 표시
+  - 좌상단: 전체 / forest / auto_forest / review / no_image / remove / 선택 수, View(X) 모드, "Selected: ... (Del -> no_image a, Shift+Del -> remove b, R -> review c, U -> auto d)" (각 키가 실제로 바꿀 그루 수), 모드 + clearSelectionAfterAction 값, 저장 안 된 변경 수, 줌
   - 좌드래그: 팬, 휠: 줌, Home: 뷰 리셋 (R 은 review)
-  - 선택은 상태와 무관 (네 상태 모두 선택됨, X 모드에서 숨긴 나무만 제외)
+  - 선택은 상태와 무관 (모든 상태 선택됨, X 로 숨긴 나무만 제외)
   - 좌클릭: 화면 15px 이내 가장 가까운 나무 선택 토글 / Ctrl+클릭: 가장 가까운 선택된 나무 하나만 해제
   - Shift+드래그: 사각형 선택(추가) / Ctrl+Shift+드래그: 사각형 안 선택 해제
   - L: 올가미 시작 → 클릭으로 꼭짓점 추가 → Enter 확정(선택 추가) / Backspace(안쪽 선택 해제) / Esc 취소
   - A: 선택 전부 해제(+ V/B 범위 해제), I: 선택 반전
-  - Delete: 선택 → no_image, Shift+Delete: 선택 → remove, R: 선택 → review, U: 선택 → auto_forest(기본값, 저장 시 파일에서 행 삭제), Ctrl+Z: 마지막 편집 취소 (최대 1000단계, 선택 변경은 대상 아님). F 는 없음
+  - Delete: 선택 → no_image, Shift+Delete: 선택 → remove, R: 선택 → review, U: 선택 → 파일에서 행 삭제(기본값) → forest / auto_forest 표시로 돌아감, Ctrl+Z: 마지막 편집 취소 (최대 1000단계, 선택 변경은 대상 아님). F 는 없음
   - clearSelectionAfterAction = true (기본): Delete/Shift+Delete/R/U 적용 후 선택 자동 해제 → 다음 올가미 선택과 합쳐지지 않음. C 키로 켜고 끔
   - B: remove 상태이면서 InsideForest==Y(out\features_dino.csv) 인 나무를 선택에 추가. 범위 = 마지막 사각형/올가미 영역(A 로 해제), 없으면 코스 전체
   - 한글 입력 상태에서 눌린 자모(ㅁ, ㅎ 등)는 2벌식 위치의 영문 키로 처리
-  - 검토: X: remove 된 나무만 표시/전체 토글(숨긴 나무는 선택 불가), N/P: 시작 시점 remove 목록을 순서대로 이동(중앙·줌 8, 그 나무만 선택, 원본 해상도 1536px 창을 GDAL 로 읽어 겹쳐 그림), 좌상단에 TreeID/수고/수관직경/현재 상태
+  - X: 보기 순환 전체 → forest 숨김 → review 만 → 전체 (임상도 안 나무가 많아 숨겨야 코스 내부가 보임, 숨긴 나무는 선택 불가)
+  - 검토: N/P: 시작 시점 remove 목록을 순서대로 이동(중앙·줌 8, 그 나무만 선택, 원본 해상도 1536px 창을 GDAL 로 읽어 겹쳐 그림), 좌상단에 TreeID/수고/수관직경/현재 상태
   - 선택 보조: V: 마지막 사각형/올가미 영역(없으면 화면) 안의 auto_forest 나무 중 수관 평균 HSV 가 밝고(V >= bright) 채도 낮은(S <= sat) 것을 선택에 추가만 함. [ / ]: bright -/+5, { / }: sat -/+5 (기본 170 / 60)
   - edit 시작 시 note 가 auto_ 로 시작하는 행은 삭제 (로그 "auto_* rows reverted: N, remaining rows: M")
   - S: 저장. Q/Esc: 종료 — 저장 안 된 변경이 있으면 콘솔에 "저장하지 않은 변경 N건" 경고 후 한 번 더 눌러야 종료
