@@ -169,7 +169,7 @@ public:
 		if (!exclusionEntries.empty())
 		{
 			// remove is dropped above; auto_forest / no_image stay in the tree list
-			std::cout << "  tree_info_excluded rows: " << TreeExclusion::countText(exclusionEntries) << " (auto_forest / no_image kept)\n";
+			std::cout << "  tree_info_excluded rows: " << TreeExclusion::countText(exclusionEntries) << " (only remove is dropped)\n";
 		}
 
 		for (auto& tp : data.tps)

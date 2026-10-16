@@ -2,15 +2,19 @@
 
 // ----------------------------------------------------------------------------------------------------------------------------
 //  TreeExclusion.h
-//  Manual corrections to a LiDAR tree list. The tree_info CSV itself is never modified.
+//  Per-tree decisions for a LiDAR tree list. The tree_info CSV itself is never modified.
 //
 //  File : <course>_tree_info_excluded.csv next to the tree_info CSV (or config "tree_exclude")
 //    TreeID,action,note
-//    action = remove       : dropped by TreeLoader::load and FeatureExtractor::loadCSV
-//             auto_forest  : kept (handled later in export)
+//    A tree that is not in the file is auto_forest (default): its asset comes from the nearest forest-map polygon,
+//    nobody looks at it.
+//    action = remove       : not a tree. Dropped by TreeLoader::load and FeatureExtractor::loadCSV
 //             no_image     : a real tree, but the aerial photo there is unusable (filled from another source).
-//                            Kept by TreeLoader; imageUsable = false in TreeLabeler / FeatureExtractor (neither train
-//                            nor predict); exported as mode "auto_forest" from the nearest forest-map polygon.
+//                            Kept by TreeLoader; imageUsable = false in TreeLabeler / FeatureExtractor (no train,
+//                            predict, evaluation or propagation); asset from the forest map like auto_forest.
+//             auto_forest  : same as the default (may be written, usually is not)
+//             review       : the designer decides this tree; export mode "review"
+//    export mode: "review" for review, "auto_forest" for everything else that is kept.
 //    TreeID is the tree_info TreeID (no course offset).
 // ----------------------------------------------------------------------------------------------------------------------------
 
@@ -33,6 +37,7 @@ public:
 	static constexpr const char* kRemove = "remove";
 	static constexpr const char* kAutoForest = "auto_forest";
 	static constexpr const char* kNoImage = "no_image";
+	static constexpr const char* kReview = "review";
 	static constexpr const char* kNone = "<none>";			// TreeLoader::load: do not apply any file
 	static constexpr const char* kAutoNotePrefix = "auto_";	// note of rows written by an automatic filter (dropped by dropAutoRows)
 
@@ -176,11 +181,16 @@ public:
 		return idsWithAction(entries, kNoImage);
 	}
 
-	// "remove N, auto_forest N, no_image N"
+	static std::unordered_set<long long> reviewIds(const std::map<long long, Entry>& entries)
+	{
+		return idsWithAction(entries, kReview);
+	}
+
+	// "remove N, no_image N, review N, auto_forest (explicit) N"
 	static std::string countText(const std::map<long long, Entry>& entries)
 	{
-		return "remove " + std::to_string(idsWithAction(entries, kRemove).size()) + ", auto_forest " + std::to_string(idsWithAction(entries, kAutoForest).size())
-			+ ", no_image " + std::to_string(idsWithAction(entries, kNoImage).size());
+		return "remove " + std::to_string(idsWithAction(entries, kRemove).size()) + ", no_image " + std::to_string(idsWithAction(entries, kNoImage).size())
+			+ ", review " + std::to_string(idsWithAction(entries, kReview).size()) + ", auto_forest (explicit) " + std::to_string(idsWithAction(entries, kAutoForest).size());
 	}
 
 	// Registry for FeatureExtractor::loadCSV / TreeLabeler, keyed by TreeID + course offset -> action

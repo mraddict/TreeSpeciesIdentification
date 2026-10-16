@@ -268,6 +268,7 @@ int runRender(const std::string& configPath, const std::string& outDir, const st
 int runEdit(const std::string& configPath, const std::string& courseName);
 int runReview(const std::string& configPath, const std::string& outDir, const std::string& courseName);
 int runPrepare(const std::string& configPath, const std::string& outDir, const std::string& target);
+int runMigrateExcluded(const std::string& configPath, const std::string& outDir, const std::string& target);
 
 void printUsage(const char* prog)
 {
@@ -369,6 +370,27 @@ int main(int argc, char** argv)
 		try
 		{
 			return runEdit(argv[3], argv[4]);
+		}
+		catch (const std::exception& e)
+		{
+			std::cerr << "ERROR: " << e.what() << "\n";
+
+			return 2;
+		}
+	}
+
+	if (experiment && (std::string(argv[2]) == "migrate-excluded"))
+	{
+		if (argc < 5)
+		{
+			std::cerr << "migrate-excluded needs <courses_dataset.json> <course|all>\n";
+
+			return 1;
+		}
+
+		try
+		{
+			return runMigrateExcluded(argv[3], "out", argv[4]);
 		}
 		catch (const std::exception& e)
 		{

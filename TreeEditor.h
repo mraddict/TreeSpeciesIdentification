@@ -9,14 +9,15 @@
 //          Shift + left drag = rectangle select (adds), Ctrl + Shift + drag = rectangle unselect
 //  Keys:   L = lasso (click vertices, Enter = select, Backspace = unselect, Esc = cancel)
 //          A = clear selection, I = invert selection
-//          Delete = remove, U = keep, F = auto_forest, G = no_image, Ctrl+Z = undo
-//          C = toggle clearSelectionAfterAction (default on: Delete / U / F / G clear the selection)
-//          S = save, R = reset view, Q / Esc = quit (press twice if unsaved)
+//          Delete = no_image (gray), Shift + Delete = remove (red X), R = review (thick green),
+//          U = back to auto_forest (default, row dropped from the file), Ctrl+Z = undo
+//          C = toggle clearSelectionAfterAction (default on: Delete / U / R clear the selection)
+//          S = save, Home = reset view, Q / Esc = quit (press twice if unsaved)
 //  B     = select removed trees inside the forest map (InsideForest == Y; scope = rect / lasso area, otherwise all)
 //  Review: X = show removed trees only / all
 //          N / P = next / previous removed tree (order of the file at start); centred, zoomed and selected,
-//                  drawn from the full-resolution file when aerialPath is given. U restores it.
-//  Assist: V = add "bright, low saturation" kept trees to the selection (never removes; Delete does)
+//                  drawn from the full-resolution file when aerialPath is given. U returns it to auto_forest.
+//  Assist: V = add "bright, low saturation" auto_forest trees to the selection (never changes marks)
 //              scope = last rectangle / lasso area (cleared by A), otherwise the visible screen
 //              crown mean HSV: V >= brightMin and S <= satMax.  [ / ] = brightMin -/+ 5, { / } = satMax -/+ 5
 // ----------------------------------------------------------------------------------------------------------------------------
@@ -28,6 +29,11 @@
 #include "CoordTransformer.h"
 
 #include <deque>
+
+// user32 GetKeyState without pulling in <windows.h> (Shift + Delete)
+#ifndef _WINUSER_
+extern "C" __declspec(dllimport) short __stdcall GetKeyState(int nVirtKey);
+#endif
 
 class TreeEditor
 {
@@ -77,7 +83,7 @@ public:
 			if (it != st.fileEntries.end())
 			{
 				t.mark = fromAction(it->second.action);
-				restored += (t.mark != Mark::Keep) ? 1 : 0;
+				restored += (t.mark != Mark::Auto) ? 1 : 0;
 			}
 
 			st.trees.push_back(t);
@@ -99,7 +105,7 @@ public:
 		ImageViewer::Options opt;
 		opt.title = title;
 		opt.printControls = false;
-		opt.hint = "Click  Ctrl+click:unselect  Shift+drag  L:lasso  A:clear  Del:remove  U:keep  F:auto_forest  G:no_image  B:removed in forest  C:auto-clear  Ctrl+Z:undo  S:save  X  N/P  V  R  Q";
+		opt.hint = "Click  Ctrl+click:unselect  Shift+drag  L:lasso  A:clear  Del:no_image  Shift+Del:remove  R:review  U:auto  B  C:auto-clear  Ctrl+Z  S:save  X  N/P  V  Home:reset  Q";
 		st.hasForestFlags = (insideForest != nullptr) && !insideForest->empty();
 
 		st.windowW = opt.windowW;
@@ -112,18 +118,19 @@ public:
 
 		std::cout << "=== Tree editor ===\n"
 			<< "  Trees: " << st.trees.size() << ", restored from file: " << restored << " (" << exclusionPath << ")\n"
-			<< "  Left drag     : pan,  wheel: zoom,  R: reset view\n"
+			<< "  Left drag     : pan,  wheel: zoom,  Home: reset view\n"
 			<< "  Left click    : toggle nearest tree (within 15 px),  Ctrl + click: unselect nearest\n"
 			<< "  Shift + drag  : rectangle select (adds),  Ctrl + Shift + drag: rectangle unselect\n"
 			<< "  L             : lasso (click vertices, Enter = select, Backspace = unselect, Esc = cancel)\n"
 			<< "  A / I         : clear / invert selection\n"
-			<< "  Delete/U/F/G  : remove / keep / auto_forest / no_image,  Ctrl+Z: undo\n"
-			<< "  C             : clear selection after Delete/U/F/G on/off (now " << (st.clearSelectionAfterAction ? "on" : "off") << ")\n"
+			<< "  Delete        : no_image (gray),  Shift + Delete: remove (red X),  R: review (thick green)\n"
+			<< "  U             : back to auto_forest (default; not written to the file),  Ctrl+Z: undo\n"
+			<< "  C             : clear selection after Delete/U/R on/off (now " << (st.clearSelectionAfterAction ? "on" : "off") << ")\n"
 			<< "  B             : select removed trees inside the forest map (rect/lasso area, otherwise all)" << (st.hasForestFlags ? "" : " - no InsideForest flags") << "\n"
 			<< "  S             : save\n"
 			<< "  X             : show removed trees only / all\n"
 			<< "  N / P         : next / previous removed tree (" << st.reviewList.size() << "), zoomed" << (aerialPath.empty() ? "" : " at full resolution") << ", U = restore\n"
-			<< "  V             : add bright, low-saturation kept trees in the rect/lasso area (or screen) to the selection - Delete to remove\n"
+			<< "  V             : add bright, low-saturation auto_forest trees in the rect/lasso area (or screen) to the selection\n"
 			<< "  [ / ]  { / }  : bright min -/+ 5,  saturation max -/+ 5 (HSV 0-255)\n"
 			<< "  Q / Esc       : quit (press twice if there are unsaved changes)\n";
 
@@ -139,12 +146,13 @@ public:
 
 private:
 
+	// Auto = not in the file (auto_forest, the default); explicit auto_forest rows load as Auto and are not written back
 	enum class Mark
 	{
-		Keep,
+		Auto,
 		Remove,
-		AutoForest,
 		NoImage,
+		Review,
 		Count
 	};
 
@@ -156,7 +164,7 @@ private:
 		float height = 0.0f;				// m
 		float crownD = 0.0f;				// m
 		int forest = -1;					// InsideForest: 1 = Y, 0 = N, -1 = unknown
-		Mark mark = Mark::Keep;
+		Mark mark = Mark::Auto;
 		bool selected = false;
 	};
 
@@ -207,6 +215,12 @@ private:
 	};
 
 	static constexpr int kDeleteKey = 0x2E0000;		// waitKeyEx code on Windows
+	static constexpr int kVkShift = 0x10;			// VK_SHIFT
+
+	static bool isShiftDown()
+	{
+		return (GetKeyState(kVkShift) & 0x8000) != 0;
+	}
 	static constexpr int kCtrlZ = 26;
 	static constexpr int kEnter = 13;
 	static constexpr int kBackspace = 8;
@@ -228,17 +242,17 @@ private:
 			return Mark::Remove;
 		}
 
-		if (action == TreeExclusion::kAutoForest)
-		{
-			return Mark::AutoForest;
-		}
-
 		if (action == TreeExclusion::kNoImage)
 		{
 			return Mark::NoImage;
 		}
 
-		return Mark::Keep;
+		if (action == TreeExclusion::kReview)
+		{
+			return Mark::Review;
+		}
+
+		return Mark::Auto;			// auto_forest (explicit) and unknown actions
 	}
 
 	static const char* toAction(Mark m)
@@ -246,9 +260,9 @@ private:
 		switch (m)
 		{
 			case Mark::Remove:		return TreeExclusion::kRemove;
-			case Mark::AutoForest:	return TreeExclusion::kAutoForest;
 			case Mark::NoImage:		return TreeExclusion::kNoImage;
-			default:				return "keep";
+			case Mark::Review:		return TreeExclusion::kReview;
+			default:				return TreeExclusion::kAutoForest;
 		}
 	}
 
@@ -418,7 +432,7 @@ private:
 		{
 			Tree& t = st.trees[i];
 
-			if ((t.mark != Mark::Keep) || t.selected || !isVisible(st, t) || (cv::pointPolygonTest(scope, t.px, false) < 0))
+			if ((t.mark != Mark::Auto) || t.selected || !isVisible(st, t) || (cv::pointPolygonTest(scope, t.px, false) < 0))
 			{
 				continue;
 			}
@@ -434,7 +448,7 @@ private:
 			}
 		}
 
-		st.message = "V (" + scopeName + "): +" + std::to_string(added) + " selected of " + std::to_string(candidates) + " kept trees - Delete to remove";
+		st.message = "V (" + scopeName + "): +" + std::to_string(added) + " selected of " + std::to_string(candidates) + " auto_forest trees";
 	}
 
 	static void setRegion(State& st, const std::vector<cv::Point2f>& poly, const char* kind)
@@ -539,7 +553,7 @@ private:
 			}
 		}
 
-		st.message = "B (" + (st.region.empty() ? std::string("all") : st.regionKind) + "): removed + InsideForest Y " + std::to_string(candidates) + ", +" + std::to_string(added) + " selected - G = no_image";
+		st.message = "B (" + (st.region.empty() ? std::string("all") : st.regionKind) + "): removed + InsideForest Y " + std::to_string(candidates) + ", +" + std::to_string(added) + " selected - Del = no_image";
 	}
 
 	// Ctrl + click: unselect the nearest selected tree
@@ -603,7 +617,7 @@ private:
 		{
 			shown.insert(t.id);
 
-			if (t.mark == Mark::Keep)
+			if (t.mark == Mark::Auto)
 			{
 				continue;
 			}
@@ -831,9 +845,10 @@ private:
 
 		st.quitArmed = false;
 
+		// Delete = no_image, Shift + Delete = remove (waitKeyEx does not report Shift, so ask the keyboard state)
 		if (key == kDeleteKey)
 		{
-			applyMark(st, Mark::Remove);
+			applyMark(st, isShiftDown() ? Mark::Remove : Mark::NoImage);
 
 			return true;
 		}
@@ -879,9 +894,9 @@ private:
 				return true;
 			}
 
-			case 'g':
-			case 'G':
-				applyMark(st, Mark::NoImage);
+			case 'r':
+			case 'R':
+				applyMark(st, Mark::Review);
 				return true;
 
 			case 'b':
@@ -925,7 +940,7 @@ private:
 			case 'X':
 				st.removedOnly = !st.removedOnly;
 
-				// hidden trees must not stay selected (Delete / U / F act on the selection)
+				// hidden trees must not stay selected (Delete / U / R act on the selection)
 				for (auto& t : st.trees)
 				{
 					t.selected = t.selected && isVisible(st, t);
@@ -945,12 +960,7 @@ private:
 
 			case 'u':
 			case 'U':
-				applyMark(st, Mark::Keep);
-				return true;
-
-			case 'f':
-			case 'F':
-				applyMark(st, Mark::AutoForest);
+				applyMark(st, Mark::Auto);			// back to the default: the row is dropped from the file on save
 				return true;
 
 			case 's':
@@ -964,9 +974,9 @@ private:
 
 	static void drawOverlay(State& st, cv::Mat& canvas, const ImageViewer::View& v)
 	{
-		const cv::Scalar kKeepColor(0, 220, 0);
+		const cv::Scalar kAutoColor(0, 190, 0);				// auto_forest (default): thin green
+		const cv::Scalar kReviewColor(0, 255, 0);				// review: thick bright green
 		const cv::Scalar kRemoveColor(0, 0, 255);
-		const cv::Scalar kForestColor(255, 140, 0);
 		const cv::Scalar kNoImageColor(170, 170, 170);
 		const cv::Scalar kSelectColor(0, 255, 255);
 
@@ -1000,7 +1010,7 @@ private:
 			}
 
 			cv::Point c((int)s.x, (int)s.y);
-			cv::Scalar col = (t.mark == Mark::Remove) ? kRemoveColor : (t.mark == Mark::AutoForest) ? kForestColor : (t.mark == Mark::NoImage) ? kNoImageColor : kKeepColor;
+			cv::Scalar col = (t.mark == Mark::Remove) ? kRemoveColor : (t.mark == Mark::NoImage) ? kNoImageColor : (t.mark == Mark::Review) ? kReviewColor : kAutoColor;
 
 			if (r < kMinCrownPx)
 			{
@@ -1014,7 +1024,7 @@ private:
 				continue;
 			}
 
-			cv::circle(canvas, c, r, col, 1, cv::LINE_AA);
+			cv::circle(canvas, c, r, col, (t.mark == Mark::Review) ? 3 : 1, cv::LINE_AA);		// review: thick green outline
 			cv::circle(canvas, c, 2, col, -1, cv::LINE_AA);
 
 			if (t.mark == Mark::Remove)
@@ -1076,13 +1086,12 @@ private:
 
 		std::vector<std::string> lines =
 		{
-			"Total " + std::to_string(st.trees.size()) + "  Keep " + std::to_string(counts[(int)Mark::Keep]) + "  Removed " + std::to_string(counts[(int)Mark::Remove])
-				+ "  AutoForest " + std::to_string(counts[(int)Mark::AutoForest]) + "  NoImage " + std::to_string(counts[(int)Mark::NoImage]) + "  Selected " + std::to_string(selected),
-			"Selected: removed " + std::to_string(selCounts[(int)Mark::Remove]) + " / kept " + std::to_string(selCounts[(int)Mark::Keep])
-				+ ((selCounts[(int)Mark::AutoForest] > 0) ? " / auto_forest " + std::to_string(selCounts[(int)Mark::AutoForest]) : std::string())
-				+ ((selCounts[(int)Mark::NoImage] > 0) ? " / no_image " + std::to_string(selCounts[(int)Mark::NoImage]) : std::string())
-				+ "   (U -> keep " + std::to_string(selected - selCounts[(int)Mark::Keep]) + ", Del -> remove " + std::to_string(selected - selCounts[(int)Mark::Remove])
-				+ ", G -> no_image " + std::to_string(selected - selCounts[(int)Mark::NoImage]) + ")",
+			"Total " + std::to_string(st.trees.size()) + "   auto_forest " + std::to_string(counts[(int)Mark::Auto]) + "   remove " + std::to_string(counts[(int)Mark::Remove])
+				+ "   no_image " + std::to_string(counts[(int)Mark::NoImage]) + "   review " + std::to_string(counts[(int)Mark::Review]) + "   Selected " + std::to_string(selected),
+			"Selected: auto_forest " + std::to_string(selCounts[(int)Mark::Auto]) + " / remove " + std::to_string(selCounts[(int)Mark::Remove])
+				+ " / no_image " + std::to_string(selCounts[(int)Mark::NoImage]) + " / review " + std::to_string(selCounts[(int)Mark::Review])
+				+ "   (Del -> no_image " + std::to_string(selected - selCounts[(int)Mark::NoImage]) + ", Shift+Del -> remove " + std::to_string(selected - selCounts[(int)Mark::Remove])
+				+ ", R -> review " + std::to_string(selected - selCounts[(int)Mark::Review]) + ", U -> auto " + std::to_string(selected - selCounts[(int)Mark::Auto]) + ")",
 			"Mode: " + mode + (st.removedOnly ? "   [X] removed only" : "") + "   clearSelectionAfterAction = " + (st.clearSelectionAfterAction ? "true" : "false") + " (C)",
 			(unsaved > 0) ? "* unsaved changes: " + std::to_string(unsaved) : "saved",
 			"V select: bright >= " + std::to_string(st.brightMin) + "  sat <= " + std::to_string(st.satMax)

@@ -543,6 +543,18 @@ public:
 
 		OGRPoint pt(x, y);
 
+		// inside a polygon (the common case): only polygons whose envelope holds the point
+		for (auto& c : candidates_)
+		{
+			if ((x >= c.env.MinX) && (x <= c.env.MaxX) && (y >= c.env.MinY) && (y <= c.env.MaxY) && c.geometry->Contains(&pt))
+			{
+				code = c.code;
+				dist = 0.0;
+
+				return true;
+			}
+		}
+
 		// growing search radius; the envelope distance is a lower bound of the polygon distance
 		for (double radius : { kNoImageNearDist, 500.0, 5000.0, std::numeric_limits<double>::max() })
 		{
@@ -599,9 +611,10 @@ struct CourseRunStats
 	int total = -1;					// tree_info rows (no exclusion applied)
 	int removed = -1;				// action == remove, present in tree_info
 	int noImage = -1;				// action == no_image, present in tree_info
+	int review = -1;				// action == review, written to trees.json
 	int insideForest = -1;			// kept trees with InsideForest == Y
 	int noFeatureRow = -1;			// kept trees without a features_dino.csv row
-	int exported = -1;				// trees.json
+	int exported = -1;				// trees.json (review + auto_forest)
 	bool hasExclusionFile = false;
 };
 
@@ -622,21 +635,17 @@ static int exportCourse(const std::string& configPath, const std::string& outDir
 
 	std::cout << "=== Export: " << courseName << " ===\n";
 
-	if (!useBoundary)
-	{
-		std::cout << "  ! 'courseBoundary' is not set - trees with InsideForest == N are taken as the course interior\n";
-	}
-
-	// 1. Trees in EPSG:5179 (TreeID without course offset). remove is dropped by TreeLoader; no_image is exported separately (step 5)
+	// 1. Trees in EPSG:5179 (TreeID without course offset); remove is dropped by TreeLoader
 	TreeData trees = TreeLoader::load(course->treeInfoPath, course->treeSrcEPSG, kExportEpsg, 0.0, 0.0, course->treeExcludePath);
 
 	std::map<long long, TreeExclusion::Entry> exclusion = TreeExclusion::load(TreeExclusion::resolvePath(course->treeInfoPath, course->treeExcludePath));
+	std::unordered_set<long long> reviewIds = TreeExclusion::reviewIds(exclusion);
 	std::unordered_set<long long> noImageIds = TreeExclusion::noImageIds(exclusion);
 
 	std::cout << "  tree_info_excluded: " << TreeExclusion::countText(exclusion) << "\n";
 
-	// 2. Candidates: inside the boundary, or every tree (filtered by InsideForest in step 3)
-	std::vector<const TreePoint*> inside;
+	// 2. Every kept tree, or the ones inside courseBoundary if the config sets it
+	std::vector<const TreePoint*> selected;
 
 	if (useBoundary)
 	{
@@ -677,43 +686,58 @@ static int exportCourse(const std::string& configPath, const std::string& outDir
 
 			if (insideBoundary(boundary, bx, by))
 			{
-				inside.push_back(&tp);
+				selected.push_back(&tp);
 			}
 		}
 
 		OGRCoordinateTransformation::DestroyCT(toBoundaryCT);
 		ForestLoader::release(boundary);
 
-		std::cout << "  Interior criterion: boundary SHP " << course->boundaryPath << " (EPSG:" << boundaryEpsg << ")\n";
-		std::cout << "  Trees inside boundary: " << inside.size() << " / " << trees.tps.size() << "\n";
+		std::cout << "  Boundary SHP " << course->boundaryPath << " (EPSG:" << boundaryEpsg << "): " << selected.size() << " / " << trees.tps.size() << " trees\n";
 	}
 	else
 	{
 		for (auto& tp : trees.tps)
 		{
-			inside.push_back(&tp);
+			selected.push_back(&tp);
 		}
-
-		std::cout << "  Interior criterion: InsideForest == N in features_dino.csv (no courseBoundary)\n";
 	}
 
-	// 3. Embeddings
+	// 3. Embeddings for review trees only (the designer's candidates)
 	std::unordered_set<long long> wanted;
 
-	for (auto* tp : inside)
+	for (auto* tp : selected)
 	{
-		wanted.insert(tp->treeId + course->treeIdOffset);
+		if (reviewIds.count(tp->treeId))
+		{
+			wanted.insert(tp->treeId + course->treeIdOffset);
+		}
 	}
 
-	int wrongCourse = 0;
-	auto embeddings = loadDinoEmbeddings(TSICommon::join(outDir, "features_dino.csv"), wanted, courseName, !useBoundary, wrongCourse);
+	std::unordered_map<long long, std::vector<std::string>> embeddings;
+	std::string dinoPath = TSICommon::join(outDir, "features_dino.csv");
 
-	if (wrongCourse > 0)
+	if (!wanted.empty())
 	{
-		std::cout << "  ! " << wrongCourse << " embedding rows belong to another course (TreeID offset / course order mismatch) - ignored\n";
+		if (TSICommon::exists(dinoPath))
+		{
+			int wrongCourse = 0;
+			embeddings = loadDinoEmbeddings(dinoPath, wanted, courseName, false, wrongCourse);
+
+			if (wrongCourse > 0)
+			{
+				std::cout << "  ! " << wrongCourse << " embedding rows belong to another course (TreeID offset / course order mismatch) - ignored\n";
+			}
+		}
+		else
+		{
+			std::cout << "  ! " << dinoPath << " not found - review trees are written without embeddings\n";
+		}
 	}
 
-	// 4. trees.json
+	// 4. Forest map species for auto_forest / no_image
+	ForestLayer forest = ForestLoader::loadMultiple(course->shpFiles, "", false);
+
 	std::string courseDir = TSICommon::join(outDir, courseName);
 	TSICommon::mkdirs(courseDir);
 
@@ -722,99 +746,80 @@ static int exportCourse(const std::string& configPath, const std::string& outDir
 
 	if (!ofs.is_open())
 	{
+		ForestLoader::release(forest);
+
 		throw std::runtime_error("Failed to create: " + jsonPath);
 	}
 
 	ofs << std::fixed << "[\n";
 
 	int written = 0;
-	int noEmbedding = 0;
-	int skippedNoImage = 0;
-
-	for (auto* tp : inside)
-	{
-		if (noImageIds.count(tp->treeId))
-		{
-			++skippedNoImage;			// written in step 5
-
-			continue;
-		}
-
-		auto it = embeddings.find(tp->treeId + course->treeIdOffset);
-
-		if (it == embeddings.end())
-		{
-			++noEmbedding;
-
-			continue;
-		}
-
-		if (written > 0)
-		{
-			ofs << ",\n";
-		}
-
-		ofs << "  {\"id\": " << tp->treeId
-			<< ", \"x\": " << std::setprecision(3) << tp->x
-			<< ", \"y\": " << tp->y
-			<< ", \"height\": " << std::setprecision(2) << tp->height
-			<< ", \"crownD\": " << tp->crownD
-			<< ", \"embedding\": [";
-
-		for (size_t i = 0 ; i < it->second.size() ; ++i)
-		{
-			ofs << (i ? "," : "") << it->second[i];
-		}
-
-		ofs << "], \"suggested\": null, \"confidence\": 0}";
-
-		++written;
-	}
-
-	// 5. no_image trees (every one in tree_info, interior or not): mode auto_forest, species from the forest map
+	int reviewWritten = 0;
+	int reviewNoEmbedding = 0;
 	int noImageWritten = 0;
-	int noImageCount[4] = { 0, 0, 0, 0 };		// inside / within 50 m / farther / no species polygon
+	int autoCount[4] = { 0, 0, 0, 0 };		// inside / within 50 m / farther / no species polygon
 
-	if (!noImageIds.empty())
 	{
-		ForestLayer forest = ForestLoader::loadMultiple(course->shpFiles, "", false);
+		ForestSpeciesLookup lookup(forest, kExportEpsg);
 
+		std::cout << "  Forest map species polygons (C/D/E/M): " << lookup.polygonCount() << "\n";
+
+		for (auto* tp : selected)
 		{
-			ForestSpeciesLookup lookup(forest, kExportEpsg);
-
-			std::cout << "  no_image: forest map species polygons (C/D/E/M): " << lookup.polygonCount() << "\n";
-
-			for (auto& tp : trees.tps)
+			if (written > 0)
 			{
-				if (!noImageIds.count(tp.treeId))
+				ofs << ",\n";
+			}
+
+			ofs << "  {\"id\": " << tp->treeId
+				<< ", \"x\": " << std::setprecision(3) << tp->x
+				<< ", \"y\": " << tp->y
+				<< ", \"height\": " << std::setprecision(2) << tp->height
+				<< ", \"crownD\": " << tp->crownD;
+
+			if (reviewIds.count(tp->treeId))
+			{
+				// review: the designer decides; embedding for the classifier, no suggestion yet
+				auto it = embeddings.find(tp->treeId + course->treeIdOffset);
+
+				if (it == embeddings.end())
 				{
-					continue;
+					ofs << ", \"embedding\": null";
+					++reviewNoEmbedding;
+				}
+				else
+				{
+					ofs << ", \"embedding\": [";
+
+					for (size_t i = 0 ; i < it->second.size() ; ++i)
+					{
+						ofs << (i ? "," : "") << it->second[i];
+					}
+
+					ofs << "]";
 				}
 
+				ofs << ", \"mode\": \"review\", \"suggested\": null, \"source\": null, \"confidence\": 0}";
+				++reviewWritten;
+			}
+			else
+			{
+				// auto_forest (default) and no_image: asset from the nearest forest-map species polygon
 				std::string code;
 				double dist = -1.0;
 				double conf = 0.0;
 				int bucket = 3;
 
-				if (lookup.nearest(tp.x, tp.y, code, dist))
+				if (lookup.nearest(tp->x, tp->y, code, dist))
 				{
 					bucket = (dist <= 1e-9) ? 0 : (dist <= kNoImageNearDist) ? 1 : 2;
 					conf = (bucket == 0) ? kNoImageConfInside : (bucket == 1) ? kNoImageConfNear : kNoImageConfFar;
 				}
 
-				++noImageCount[bucket];
+				++autoCount[bucket];
+				noImageWritten += noImageIds.count(tp->treeId) ? 1 : 0;
 
-				if (written + noImageWritten > 0)
-				{
-					ofs << ",\n";
-				}
-
-				ofs << "  {\"id\": " << tp.treeId
-					<< ", \"x\": " << std::setprecision(3) << tp.x
-					<< ", \"y\": " << tp.y
-					<< ", \"height\": " << std::setprecision(2) << tp.height
-					<< ", \"crownD\": " << tp.crownD
-					<< ", \"embedding\": null, \"mode\": \"auto_forest\"";
+				ofs << ", \"embedding\": null, \"mode\": \"auto_forest\"";
 
 				if (code.empty())
 				{
@@ -826,43 +831,32 @@ static int exportCourse(const std::string& configPath, const std::string& outDir
 				}
 
 				ofs << ", \"confidence\": " << std::setprecision(1) << conf << "}";
-
-				++noImageWritten;
 			}
-		}
 
-		ForestLoader::release(forest);
+			++written;
+		}
 	}
+
+	ForestLoader::release(forest);
 
 	ofs << "\n]\n";
 	ofs.close();
 
-	std::cout << "  Written: " << (written + noImageWritten) << " trees -> " << jsonPath << " (classify " << written << ", no_image auto_forest " << noImageWritten << ")\n";
+	int autoWritten = written - reviewWritten;
 
-	if (noImageWritten > 0)
-	{
-		std::cout << "  no_image confidence: inside polygon " << noImageCount[0] << " (" << kNoImageConfInside << "), <= " << kNoImageNearDist << " m " << noImageCount[1]
-			<< " (" << kNoImageConfNear << "), farther " << noImageCount[2] << " (" << kNoImageConfFar << "), no species polygon " << noImageCount[3] << " (0)\n";
-	}
+	std::cout << "  Written: " << written << " trees -> " << jsonPath << " (review " << reviewWritten << ", auto_forest " << autoWritten << " incl. no_image " << noImageWritten << ")\n";
+	std::cout << "  auto_forest confidence: inside polygon " << autoCount[0] << " (" << kNoImageConfInside << "), <= " << kNoImageNearDist << " m " << autoCount[1]
+		<< " (" << kNoImageConfNear << "), farther " << autoCount[2] << " (" << kNoImageConfFar << "), no species polygon " << autoCount[3] << " (0)\n";
 
-	if (useBoundary)
+	if (reviewNoEmbedding > 0)
 	{
-		std::cout << "  Skipped (no embedding): " << noEmbedding << "\n";
-	}
-	else
-	{
-		std::cout << "  Not exported (InsideForest == Y or no embedding): " << noEmbedding << "\n";
-	}
-
-	if (skippedNoImage > 0)
-	{
-		std::cout << "  (" << skippedNoImage << " interior no_image trees are written as auto_forest, not with embeddings)\n";
+		std::cout << "  ! review trees without an embedding: " << reviewNoEmbedding << "\n";
 	}
 
 	if (stats)
 	{
 		stats->exported = written;
-		stats->noImage = noImageWritten;
+		stats->review = reviewWritten;
 	}
 
 	return 0;
@@ -1355,8 +1349,25 @@ static std::string reviewPercent(int a, int b)
 	return buf;
 }
 
-// TreeLabeler crop if present, otherwise the crown (x1.4) cut from the full-resolution aerial photo
-static cv::Mat reviewThumb(const ReviewTree& t, const cv::Mat& aerial, double pixPerMeter, bool& fromCrop)
+// Crown crop for a tree without a saved TreeLabeler crop (empty Mat = none)
+using ThumbFallback = std::function<cv::Mat(const ReviewTree&)>;
+
+// Crown (x1.4) cut from an in-memory full-resolution aerial photo
+static ThumbFallback cropFromAerialImage(const cv::Mat& aerial, double pixPerMeter)
+{
+	return [&aerial, pixPerMeter](const ReviewTree& t) -> cv::Mat
+	{
+		int half = (int)std::lround(std::max(8.0, t.tp.crownD * 0.5 * 1.4 * pixPerMeter));
+		half = std::min(half, 256);
+
+		cv::Rect r = cv::Rect((int)t.px.x - half, (int)t.px.y - half, half * 2, half * 2) & cv::Rect(0, 0, aerial.cols, aerial.rows);
+
+		return (r.area() > 0) ? toBGR8(aerial(r)) : cv::Mat();
+	};
+}
+
+// TreeLabeler crop if present, otherwise fallback(t)
+static cv::Mat reviewThumb(const ReviewTree& t, const ThumbFallback& fallback, bool& fromCrop)
 {
 	cv::Mat crop;
 
@@ -1367,17 +1378,9 @@ static cv::Mat reviewThumb(const ReviewTree& t, const cv::Mat& aerial, double pi
 
 	fromCrop = !crop.empty();
 
-	if (crop.empty())
+	if (crop.empty() && fallback)
 	{
-		int half = (int)std::lround(std::max(8.0, t.tp.crownD * 0.5 * 1.4 * pixPerMeter));
-		half = std::min(half, 256);
-
-		cv::Rect r = cv::Rect((int)t.px.x - half, (int)t.px.y - half, half * 2, half * 2) & cv::Rect(0, 0, aerial.cols, aerial.rows);
-
-		if (r.area() > 0)
-		{
-			crop = toBGR8(aerial(r));
-		}
+		crop = fallback(t);
 	}
 
 	cv::Mat thumb(kReviewThumb, kReviewThumb, CV_8UC3, cv::Scalar(40, 40, 40));
@@ -1391,7 +1394,7 @@ static cv::Mat reviewThumb(const ReviewTree& t, const cv::Mat& aerial, double pi
 }
 
 // 20-column sheets of 96x96 thumbnails with TreeID below. numbered: <stem>_01.jpg, _02.jpg ... otherwise <stem>.jpg (first page only)
-static std::vector<std::string> saveContactSheets(const std::vector<const ReviewTree*>& trees, const cv::Mat& aerial, double pixPerMeter, const std::string& courseDir, const std::string& stem, bool numbered, int& fromCropCount)
+static std::vector<std::string> saveContactSheets(const std::vector<const ReviewTree*>& trees, const ThumbFallback& fallback, const std::string& courseDir, const std::string& stem, bool numbered, int& fromCropCount)
 {
 	std::vector<std::string> paths;
 	const int cellH = kReviewThumb + kReviewThumbLabelH;
@@ -1413,7 +1416,7 @@ static std::vector<std::string> saveContactSheets(const std::vector<const Review
 			int y = (i / kReviewSheetCols) * cellH;
 			bool fromCrop = false;
 
-			reviewThumb(t, aerial, pixPerMeter, fromCrop).copyTo(sheet(cv::Rect(x, y, kReviewThumb, kReviewThumb)));
+			reviewThumb(t, fallback, fromCrop).copyTo(sheet(cv::Rect(x, y, kReviewThumb, kReviewThumb)));
 			fromCropCount += fromCrop ? 1 : 0;
 
 			// TreeID (yellow = cut from the aerial photo, no saved crop)
@@ -1800,13 +1803,14 @@ static int reviewCourse(const std::string& configPath, const std::string& outDir
 
 	int removedFromCrop = 0;
 	int keptFromCrop = 0;
+	ThumbFallback thumbFallback = cropFromAerialImage(aerial.image, pixPerMeter);
 
-	for (auto& p : saveContactSheets(removedList, aerial.image, pixPerMeter, courseDir, "review_excluded_sheet", true, removedFromCrop))
+	for (auto& p : saveContactSheets(removedList, thumbFallback, courseDir, "review_excluded_sheet", true, removedFromCrop))
 	{
 		savedFiles.push_back(p);
 	}
 
-	for (auto& p : saveContactSheets(keptList, aerial.image, pixPerMeter, courseDir, "review_kept_sheet", false, keptFromCrop))
+	for (auto& p : saveContactSheets(keptList, thumbFallback, courseDir, "review_kept_sheet", false, keptFromCrop))
 	{
 		savedFiles.push_back(p);
 	}
@@ -2052,32 +2056,34 @@ int runPrepare(const std::string& configPath, const std::string& outDir, const s
 	// Summary table
 	std::ostringstream ss;
 	char buf[512];
-	int sum[5] = { 0, 0, 0, 0, 0 };
+	int sum[6] = { 0, 0, 0, 0, 0, 0 };
 
 	ss << "=== Prepare summary: " << configPath << " ===\n";
-	sprintf_s(buf, "  %-10s %8s %8s %9s %10s %8s  %s\n", "course", "total", "removed", "no_image", "forest(Y)", "export", "note");
+	sprintf_s(buf, "  %-10s %8s %8s %9s %7s %10s %8s  %s\n", "course", "total", "removed", "no_image", "review", "forest(Y)", "export", "note");
 	ss << buf;
 
 	for (auto& r : rows)
 	{
-		sprintf_s(buf, "  %-10s %8s %8s %9s %10s %8s  %s\n", r.course.c_str(), prepareCell(r.stats.total).c_str(), prepareCell(r.stats.removed).c_str(),
-			prepareCell(r.stats.noImage).c_str(), prepareCell(r.stats.insideForest).c_str(), prepareCell(r.stats.exported).c_str(), r.note.c_str());
+		sprintf_s(buf, "  %-10s %8s %8s %9s %7s %10s %8s  %s\n", r.course.c_str(), prepareCell(r.stats.total).c_str(), prepareCell(r.stats.removed).c_str(),
+			prepareCell(r.stats.noImage).c_str(), prepareCell(r.stats.review).c_str(), prepareCell(r.stats.insideForest).c_str(), prepareCell(r.stats.exported).c_str(), r.note.c_str());
 		ss << buf;
 
 		sum[0] += std::max(0, r.stats.total);
 		sum[1] += std::max(0, r.stats.removed);
 		sum[2] += std::max(0, r.stats.noImage);
-		sum[3] += std::max(0, r.stats.insideForest);
-		sum[4] += std::max(0, r.stats.exported);
+		sum[3] += std::max(0, r.stats.review);
+		sum[4] += std::max(0, r.stats.insideForest);
+		sum[5] += std::max(0, r.stats.exported);
 	}
 
-	sprintf_s(buf, "  %-10s %8d %8d %9d %10d %8d\n", "sum", sum[0], sum[1], sum[2], sum[3], sum[4]);
+	sprintf_s(buf, "  %-10s %8d %8d %9d %7d %10d %8d\n", "sum", sum[0], sum[1], sum[2], sum[3], sum[4], sum[5]);
 	ss << buf;
 	ss << "  total     : tree_info rows (no exclusion)\n";
-	ss << "  removed   : tree_info_excluded.csv action == remove\n";
-	ss << "  no_image  : action == no_image (kept, image unusable; in trees.json as mode auto_forest)\n";
+	ss << "  removed   : tree_info_excluded.csv action == remove (dropped)\n";
+	ss << "  no_image  : action == no_image (kept, image unusable, not trained; exported as auto_forest)\n";
+	ss << "  review    : action == review (exported as mode review)\n";
 	ss << "  forest(Y) : kept trees with InsideForest == Y and a usable image (features_dino.csv)\n";
-	ss << "  export    : trees.json classify entries (course interior = InsideForest == N, or courseBoundary)\n";
+	ss << "  export    : trees.json = every kept tree (review + auto_forest), or the ones inside courseBoundary\n";
 
 	std::string text = ss.str();
 	std::string path = TSICommon::join(outDir, "prepare_summary.txt");
@@ -2099,6 +2105,531 @@ int runPrepare(const std::string& configPath, const std::string& outDir, const s
 	}
 
 	std::cout << "\n" << text << "  Saved: " << path << "\n";
+
+	return 0;
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------
+//  migrate-excluded : old remove rows -> remove (structure) or no_image (low-quality-aerial)
+//    structure rule : V_mean >= tv and S_mean <= ts (features_handcrafted.csv, crown crop HSV 0-255)
+//    tv / ts        : grid search on Hwarang's rows (any action, the .bak file if present):
+//                     TreeID 35518..35890 = greenhouse (structure), 36166..37367 = forest; best balanced accuracy
+//    remove rows without a feature row -> no_image ("low-quality-aerial; no feature row")
+//    no_image / review / auto_forest rows are not touched
+//    backup         : <tree_info stem>_excluded.bak.csv (an existing backup is kept, never overwritten)
+//    check sheets   : <out>/<course>/review_remove_sheet.jpg (first 400 remove), review_noimage_sheet_01.jpg (first 400 no_image)
+// ----------------------------------------------------------------------------------------------------------------------------
+
+static const long long kMigrateStructureFrom = 35518;
+static const long long kMigrateStructureTo = 35890;
+static const long long kMigrateForestFrom = 36166;
+static const long long kMigrateForestTo = 37367;
+static const char* kMigrateCalibCourse = "Hwarang";
+static const char* kNoteStructure = "structure";
+static const char* kNoteLowQuality = "low-quality-aerial";
+
+struct CrownHsv
+{
+	float s = 0.0f;
+	float v = 0.0f;
+	std::string imagePath;
+};
+
+// TreeID (global, offset applied) -> S_mean / V_mean / ImagePath from features_handcrafted.csv
+static std::unordered_map<long long, CrownHsv> loadCrownHsv(const std::string& path)
+{
+	std::ifstream file(path);
+
+	if (!file.is_open())
+	{
+		throw std::runtime_error("Failed to open: " + path + " (run experiment extract first)");
+	}
+
+	std::string line;
+	std::getline(file, line);
+
+	if (!line.empty() && (line.back() == '\r'))
+	{
+		line.pop_back();
+	}
+
+	std::vector<std::string> header = TSICommon::split(line);
+	int colS = -1;
+	int colV = -1;
+	int colPath = -1;
+
+	for (int i = 0 ; i < (int)header.size() ; ++i)
+	{
+		colS = (header[i] == "S_mean") ? i : colS;
+		colV = (header[i] == "V_mean") ? i : colV;
+		colPath = (header[i] == "ImagePath") ? i : colPath;
+	}
+
+	if ((colS < 0) || (colV < 0))
+	{
+		throw std::runtime_error("S_mean / V_mean columns not found in " + path);
+	}
+
+	int lastCol = std::max({ colS, colV, colPath });
+	std::unordered_map<long long, CrownHsv> result;
+
+	while (std::getline(file, line))
+	{
+		// only the leading columns up to lastCol are needed
+		std::vector<std::string> cols;
+		size_t pos = 0;
+
+		while ((int)cols.size() <= lastCol)
+		{
+			size_t c = line.find(',', pos);
+			cols.push_back(line.substr(pos, (c == std::string::npos) ? std::string::npos : c - pos));
+
+			if (c == std::string::npos)
+			{
+				break;
+			}
+
+			pos = c + 1;
+		}
+
+		if ((int)cols.size() <= lastCol)
+		{
+			continue;
+		}
+
+		try
+		{
+			CrownHsv h;
+			h.s = std::stof(cols[colS]);
+			h.v = std::stof(cols[colV]);
+			h.imagePath = (colPath >= 0) ? cols[colPath] : "";
+
+			result[std::stoll(cols[0])] = h;
+		}
+		catch (...)
+		{
+		}
+	}
+
+	return result;
+}
+
+static bool isStructure(const CrownHsv& h, int tv, int ts)
+{
+	return (h.v >= tv) && (h.s <= ts);
+}
+
+static std::string bakPathOf(const std::string& exclusionPath)
+{
+	size_t dot = exclusionPath.find_last_of('.');
+
+	return ((dot == std::string::npos) ? exclusionPath : exclusionPath.substr(0, dot)) + ".bak.csv";
+}
+
+// Picks tv / ts on the calibration course; prints the evidence
+static void calibrateStructureRule(const CourseDataSet& calib, const std::unordered_map<long long, CrownHsv>& hsv, int& tv, int& ts)
+{
+	std::string path = TreeExclusion::resolvePath(calib.treeInfoPath, calib.treeExcludePath);
+	std::string bak = bakPathOf(path);
+	std::string source = TSICommon::exists(bak) ? bak : path;
+	auto entries = TreeExclusion::load(source);
+
+	std::vector<CrownHsv> structure;
+	std::vector<CrownHsv> forest;
+	std::vector<long long> structureIds;
+	std::vector<long long> forestIds;
+
+	for (auto& kv : entries)
+	{
+		bool inS = (kv.first >= kMigrateStructureFrom) && (kv.first <= kMigrateStructureTo);
+		bool inF = (kv.first >= kMigrateForestFrom) && (kv.first <= kMigrateForestTo);
+
+		if (!inS && !inF)
+		{
+			continue;
+		}
+
+		auto it = hsv.find(kv.first + calib.treeIdOffset);
+
+		if (it == hsv.end())
+		{
+			continue;
+		}
+
+		(inS ? structure : forest).push_back(it->second);
+		(inS ? structureIds : forestIds).push_back(kv.first);
+	}
+
+	if (structure.empty() || forest.empty())
+	{
+		throw std::runtime_error("Calibration needs rows in both ID ranges of " + calib.courseName + " (" + source + ")");
+	}
+
+	// grid search: best balanced accuracy, ties -> nearest to the centre of the optimal region
+	double best = -1.0;
+	std::vector<std::pair<int, int>> optimal;
+
+	for (int v = 0 ; v <= 255 ; ++v)
+	{
+		for (int s = 0 ; s <= 255 ; ++s)
+		{
+			int tp = 0;
+			int tn = 0;
+
+			for (auto& h : structure)
+			{
+				tp += isStructure(h, v, s) ? 1 : 0;
+			}
+
+			for (auto& h : forest)
+			{
+				tn += isStructure(h, v, s) ? 0 : 1;
+			}
+
+			double bal = 0.5 * ((double)tp / structure.size() + (double)tn / forest.size());
+
+			if (bal > best + 1e-12)
+			{
+				best = bal;
+				optimal.clear();
+			}
+
+			if (std::abs(bal - best) <= 1e-12)
+			{
+				optimal.push_back({ v, s });
+			}
+		}
+	}
+
+	double cv = 0.0;
+	double cs = 0.0;
+
+	for (auto& o : optimal)
+	{
+		cv += o.first;
+		cs += o.second;
+	}
+
+	cv /= optimal.size();
+	cs /= optimal.size();
+
+	double bestD = std::numeric_limits<double>::max();
+
+	for (auto& o : optimal)
+	{
+		double d = std::hypot(o.first - cv, o.second - cs);
+
+		if (d < bestD)
+		{
+			bestD = d;
+			tv = o.first;
+			ts = o.second;
+		}
+	}
+
+	auto pct = [](std::vector<float> x, double q) -> double
+	{
+		std::sort(x.begin(), x.end());
+
+		return x[(size_t)std::min<double>((double)(x.size() - 1), std::floor(q * (x.size() - 1) + 0.5))];
+	};
+
+	auto line = [&](const char* name, const std::vector<CrownHsv>& g)
+	{
+		std::vector<float> vv, ss;
+
+		for (auto& h : g)
+		{
+			vv.push_back(h.v);
+			ss.push_back(h.s);
+		}
+
+		char buf[256];
+		sprintf_s(buf, "    %-10s n=%-4zu  V_mean p10 %6.1f  p50 %6.1f  p90 %6.1f   S_mean p10 %6.1f  p50 %6.1f  p90 %6.1f\n",
+			name, g.size(), pct(vv, 0.1), pct(vv, 0.5), pct(vv, 0.9), pct(ss, 0.1), pct(ss, 0.5), pct(ss, 0.9));
+		std::cout << buf;
+	};
+
+	int sOk = 0;
+	int fOk = 0;
+	std::vector<long long> missS;
+	std::vector<long long> missF;
+
+	for (size_t i = 0 ; i < structure.size() ; ++i)
+	{
+		if (isStructure(structure[i], tv, ts)) ++sOk; else missS.push_back(structureIds[i]);
+	}
+
+	for (size_t i = 0 ; i < forest.size() ; ++i)
+	{
+		if (!isStructure(forest[i], tv, ts)) ++fOk; else missF.push_back(forestIds[i]);
+	}
+
+	auto ids = [](const std::vector<long long>& v)
+	{
+		std::string s;
+
+		for (size_t i = 0 ; i < std::min<size_t>(v.size(), 15) ; ++i)
+		{
+			s += (i ? " " : "") + std::to_string(v[i]);
+		}
+
+		return s + ((v.size() > 15) ? " ..." : "");
+	};
+
+	std::cout << "=== Structure rule calibration (" << calib.courseName << ", " << source << ") ===\n";
+	std::cout << "  greenhouse = rows with TreeID " << kMigrateStructureFrom << ".." << kMigrateStructureTo << ", forest = " << kMigrateForestFrom << ".." << kMigrateForestTo << "\n";
+	line("greenhouse", structure);
+	line("forest", forest);
+	std::cout << "  rule: structure = V_mean >= " << tv << " and S_mean <= " << ts << "  (grid search 0..255, best balanced accuracy, " << optimal.size() << " optimal pairs, centre picked)\n";
+	std::cout << "  greenhouse -> structure " << sOk << "/" << structure.size() << ", forest -> no_image " << fOk << "/" << forest.size()
+		<< "  (balanced accuracy " << std::fixed << std::setprecision(1) << best * 100.0 << "%)\n" << std::setprecision(6);
+	std::cout << "  greenhouse rows not matched: " << (missS.empty() ? "-" : ids(missS)) << "\n";
+	std::cout << "  forest rows matched as structure: " << (missF.empty() ? "-" : ids(missF)) << "\n";
+}
+
+// Geo info of an aerial file without loading the raster
+struct AerialFileGeo
+{
+	std::string path;
+	double gt[6] = { 0, 1, 0, 0, 0, -1 };
+	double igt[6] = { 0, 1, 0, 0, 0, -1 };
+	int epsg = 0;
+	bool ok = false;
+};
+
+static AerialFileGeo readAerialGeo(const std::string& path)
+{
+	AerialFileGeo g;
+	g.path = path;
+
+	GDALDataset* ds = (GDALDataset*)GDALOpen(path.c_str(), GA_ReadOnly);
+
+	if (!ds)
+	{
+		return g;
+	}
+
+	if ((ds->GetGeoTransform(g.gt) == CE_None) && CoordTransformer::computeInverseGT(g.gt, g.igt))
+	{
+		g.ok = true;
+	}
+
+	const OGRSpatialReference* srs = ds->GetSpatialRef();
+
+	if (srs)
+	{
+		OGRSpatialReference copy(*srs);
+		copy.AutoIdentifyEPSG();
+
+		const char* code = copy.GetAuthorityCode(nullptr);
+		g.epsg = code ? std::atoi(code) : 0;
+	}
+
+	GDALClose(ds);
+
+	return g;
+}
+
+static int migrateCourse(const CourseDataSet& course, const std::string& outDir, const std::unordered_map<long long, CrownHsv>& hsv, int tv, int ts, std::ostringstream& table)
+{
+	std::string path = TreeExclusion::resolvePath(course.treeInfoPath, course.treeExcludePath);
+	char buf[256];
+
+	std::cout << "\n=== Migrate: " << course.courseName << " ===\n";
+
+	if (!TSICommon::exists(path))
+	{
+		std::cout << "  no exclusion file (" << path << ") - skipped\n";
+		sprintf_s(buf, "  %-10s %8s %10s %10s %12s %10s  %s\n", course.courseName.c_str(), "-", "-", "-", "-", "-", "no file");
+		table << buf;
+
+		return 0;
+	}
+
+	// 1. Backup (the first one is kept)
+	std::string bak = bakPathOf(path);
+
+	if (TSICommon::exists(bak))
+	{
+		std::cout << "  backup exists, kept: " << bak << "\n";
+	}
+	else
+	{
+		std::filesystem::copy_file(path, bak);
+		std::cout << "  backup: " << bak << "\n";
+	}
+
+	// 2. remove rows -> structure (remove) / no_image
+	auto entries = TreeExclusion::load(path);
+	int before = 0;
+	int keptRemove = 0;
+	int toNoImage = 0;
+	int noRow = 0;
+
+	for (auto& kv : entries)
+	{
+		if (kv.second.action != TreeExclusion::kRemove)
+		{
+			continue;
+		}
+
+		++before;
+
+		auto it = hsv.find(kv.first + course.treeIdOffset);
+
+		if ((it != hsv.end()) && isStructure(it->second, tv, ts))
+		{
+			kv.second.note = kNoteStructure;
+			++keptRemove;
+		}
+		else
+		{
+			kv.second.action = TreeExclusion::kNoImage;
+			kv.second.note = (it == hsv.end()) ? std::string(kNoteLowQuality) + "; no feature row" : kNoteLowQuality;
+			++toNoImage;
+			noRow += (it == hsv.end()) ? 1 : 0;
+		}
+	}
+
+	TreeExclusion::save(path, entries);
+
+	int noImageTotal = (int)TreeExclusion::noImageIds(entries).size();
+
+	std::cout << "  remove " << before << " -> remove (structure) " << keptRemove << ", no_image " << toNoImage << " (no feature row " << noRow << ")\n";
+	std::cout << "  saved: " << path << " (" << TreeExclusion::countText(entries) << ")\n";
+
+	sprintf_s(buf, "  %-10s %8d %10d %10d %12d %10d\n", course.courseName.c_str(), before, keptRemove, toNoImage, noRow, noImageTotal);
+	table << buf;
+
+	// 3. Check sheets: first 400 remove, first 400 no_image (TreeID order)
+	TreeData all = TreeLoader::load(course.treeInfoPath, course.treeSrcEPSG, kExportEpsg, 0.0, 0.0, TreeExclusion::kNone);
+	AerialFileGeo geo = readAerialGeo(course.aerialImgPath);
+	OGRCoordinateTransformation* toAerial = nullptr;
+
+	if (geo.ok && (geo.epsg > 0) && (geo.epsg != kExportEpsg))
+	{
+		toAerial = CoordTransformer::createTransform(kExportEpsg, geo.epsg);
+	}
+
+	std::vector<ReviewTree> removeTrees;
+	std::vector<ReviewTree> noImageTrees;
+
+	for (auto& tp : all.tps)
+	{
+		auto e = entries.find(tp.treeId);
+
+		if (e == entries.end())
+		{
+			continue;
+		}
+
+		bool isRemove = (e->second.action == TreeExclusion::kRemove);
+		bool isNoImage = (e->second.action == TreeExclusion::kNoImage);
+
+		if ((!isRemove || (removeTrees.size() >= (size_t)kReviewSheetPerPage)) && (!isNoImage || (noImageTrees.size() >= (size_t)kReviewSheetPerPage)))
+		{
+			continue;
+		}
+
+		ReviewTree rt;
+		rt.tp = tp;
+		rt.gx = tp.x;
+		rt.gy = tp.y;
+
+		double ax = tp.x;
+		double ay = tp.y;
+
+		if (toAerial)
+		{
+			toAerial->Transform(1, &ax, &ay);
+		}
+
+		rt.px = cv::Point2f((float)(geo.igt[0] + geo.igt[1] * ax + geo.igt[2] * ay), (float)(geo.igt[3] + geo.igt[4] * ax + geo.igt[5] * ay));
+
+		auto h = hsv.find(tp.treeId + course.treeIdOffset);
+		rt.imagePath = (h != hsv.end()) ? h->second.imagePath : "";
+
+		(isRemove ? removeTrees : noImageTrees).push_back(rt);
+	}
+
+	if (toAerial)
+	{
+		OGRCoordinateTransformation::DestroyCT(toAerial);
+	}
+
+	double ppm = geo.ok ? std::abs(geo.igt[1]) : 1.0;
+
+	// no saved crop: read the crown window from the original file
+	ThumbFallback fromFile = [&geo, ppm](const ReviewTree& t) -> cv::Mat
+	{
+		if (!geo.ok)
+		{
+			return cv::Mat();
+		}
+
+		int half = std::min(256, (int)std::lround(std::max(8.0, t.tp.crownD * 0.5 * 1.4 * ppm)));
+
+		return AerialLoader::readWindow(geo.path, cv::Rect((int)t.px.x - half, (int)t.px.y - half, half * 2, half * 2));
+	};
+
+	std::vector<const ReviewTree*> removeList;
+	std::vector<const ReviewTree*> noImageList;
+
+	for (auto& t : removeTrees) removeList.push_back(&t);
+	for (auto& t : noImageTrees) noImageList.push_back(&t);
+
+	std::string courseDir = TSICommon::join(outDir, course.courseName);
+	TSICommon::mkdirs(courseDir);
+
+	int fromCrop = 0;
+
+	if (!removeList.empty())
+	{
+		saveContactSheets(removeList, fromFile, courseDir, "review_remove_sheet", false, fromCrop);
+	}
+
+	if (!noImageList.empty())
+	{
+		saveContactSheets(noImageList, fromFile, courseDir, "review_noimage_sheet", true, fromCrop);
+	}
+
+	return 0;
+}
+
+int runMigrateExcluded(const std::string& configPath, const std::string& outDir, const std::string& target)
+{
+	CourseDataSetConfig cfg = CourseDataSetConfigLoader::load(configPath);
+
+	std::string hsvPath = TSICommon::join(outDir, "features_handcrafted.csv");
+	std::cout << "  Loading " << hsvPath << " ...\n";
+	auto hsv = loadCrownHsv(hsvPath);
+	std::cout << "  rows: " << hsv.size() << "\n";
+
+	int tv = 0;
+	int ts = 0;
+	calibrateStructureRule(findCourse(cfg, kMigrateCalibCourse), hsv, tv, ts);
+
+	std::ostringstream table;
+	char buf[256];
+
+	sprintf_s(buf, "  %-10s %8s %10s %10s %12s %10s\n", "course", "remove", "->remove", "->no_image", "(no featrow)", "no_image");
+	table << "=== migrate-excluded (structure = V_mean >= " << tv << " and S_mean <= " << ts << ") ===\n" << buf;
+
+	for (auto& c : cfg.courses)
+	{
+		if ((target == "all") ? c.enabled : (c.courseName == target))
+		{
+			migrateCourse(c, outDir, hsv, tv, ts, table);
+		}
+	}
+
+	table << "  remove     : remove rows before migration\n"
+		<< "  ->remove   : kept as remove, note \"structure\"\n"
+		<< "  ->no_image : changed to no_image, note \"low-quality-aerial\" (no featrow: no features_handcrafted.csv row)\n"
+		<< "  no_image   : no_image rows after migration (including earlier ones)\n";
+
+	std::cout << "\n" << table.str();
 
 	return 0;
 }
@@ -2176,6 +2707,7 @@ int runEdit(const std::string& configPath, const std::string& courseName)
 // TreeSpeciesIdentification.exe --experiment render ..\..\Resources\courses_dataset.json out\ Hwarang [--skip-forest]
 // TreeSpeciesIdentification.exe --experiment review ..\..\Resources\courses_dataset.json Hwarang
 // TreeSpeciesIdentification.exe --experiment prepare ..\..\Resources\courses_dataset.json Hwarang|all
+// TreeSpeciesIdentification.exe --experiment migrate-excluded ..\..\Resources\courses_dataset.json Hwarang|all
 
 int runFeatureExperiment(int argc, char** argv)
 {

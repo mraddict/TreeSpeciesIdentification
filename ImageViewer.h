@@ -116,7 +116,8 @@ public:
 				break;
 			}
 
-			if ((key == 'r') || (key == 'R'))
+			// Home always resets (R may be taken by onKey)
+			if ((key == 'r') || (key == 'R') || (keyEx == kHomeKey))
 			{
 				s.zoom = s.initZoom;
 				s.panX = s.initPanX;
@@ -136,6 +137,8 @@ public:
 	}
 
 private:
+
+	static constexpr int kHomeKey = 0x240000;			// waitKeyEx code of Home on Windows
 
 	struct ViewerState
 	{
