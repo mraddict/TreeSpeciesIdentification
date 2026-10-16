@@ -15,19 +15,25 @@ TreeSpeciesIdentification.exe --experiment export <config> out\ <course>
 - export: out\<course>\trees.json 생성 (id, x, y(EPSG:5179), height, crownD, embedding[384], suggested=null, confidence=0)
   - 임베딩은 out\features_dino.csv 에서 읽음 (extract 선행 필요). id는 tree_info CSV의 TreeID (코스 오프셋 미적용)
   - 코스 내부 기준: config 코스 항목의 "courseBoundary" SHP. 없으면 경고 후 InsideForest == N 으로 대체
+  - no_image 나무: 코스 내부 여부와 무관하게 전부 추가 기록 — embedding=null, mode="auto_forest", suggested=임상도 최근접 수종 폴리곤(C/D/E/M) 의 SpeciesCodes::asset(code), source="forest:<code>", confidence 폴리곤 안 0.9 / 50m 이내 0.6 / 그 밖 0.3 / 폴리곤 없음 0(suggested=null, source="forest:none"). 일반 항목(classify)은 기존 형식 그대로
+  - SpeciesCodes::asset(code) 는 영문 이름 snake_case (예: 11 → pine, 77 → mixed_forest) 임시 키. 실제 에셋 카탈로그가 정해지면 교체
 TreeSpeciesIdentification.exe --experiment render <config> out\ <course> [--skip-forest]
 - render: out\<course>\render_overview.jpg (1/4), render_tile_1~3.jpg (원본 2048px, trees.json 밀집 영역)
 TreeSpeciesIdentification.exe --experiment edit <config> <course>
 - edit: tree_info 의 모든 나무를 항공사진 위에 표시하고 오검출을 표시하는 편집기 (TreeEditor.h, ImageViewer 기반)
   - 항공사진은 GDAL 로 1/4 축소본만 로드. 원본 tree_info CSV 는 절대 수정하지 않음
-  - 색: 녹색=유지, 빨강+X=remove, 파랑=auto_forest, 노란 테두리=선택. 줌이 작으면 점만 표시
-  - 좌상단: 전체/유지/remove/auto_forest/선택 수, "Selected: removed N / kept M (U -> keep a, Del -> remove b)" (U·Delete 가 실제로 바꿀 그루 수), 모드(NORMAL/RECT/LASSO), 저장 안 된 변경 수, 줌
+  - 색: 녹색=유지, 빨강+X=remove, 파랑=auto_forest, 회색=no_image, 노란 테두리=선택. 줌이 작으면 점만 표시
+  - 좌상단: 전체/유지/remove/auto_forest/no_image/선택 수, "Selected: removed N / kept M (U -> keep a, Del -> remove b, G -> no_image c)" (각 키가 실제로 바꿀 그루 수), 모드(NORMAL/RECT/LASSO) + clearSelectionAfterAction 값, 저장 안 된 변경 수, 줌
   - 좌드래그: 팬, 휠: 줌, R: 뷰 리셋
-  - 선택은 상태와 무관 (유지·remove·auto_forest 모두 선택됨, X 모드에서 숨긴 나무만 제외)
-  - 좌클릭: 화면 15px 이내 가장 가까운 나무 선택 토글 / Shift+드래그: 사각형 선택(추가)
-  - L: 올가미 시작 → 클릭으로 꼭짓점 추가 → Enter 확정(선택 추가) / Esc 취소
-  - A: 선택 해제, I: 선택 반전
-  - Delete: 선택 → remove, U: 선택 → 유지 (remove 된 나무 되살리기), F: 선택 → auto_forest, Ctrl+Z: 마지막 편집 취소 (최대 1000단계, 선택 변경은 대상 아님)
+  - 선택은 상태와 무관 (유지·remove·auto_forest·no_image 모두 선택됨, X 모드에서 숨긴 나무만 제외)
+  - 좌클릭: 화면 15px 이내 가장 가까운 나무 선택 토글 / Ctrl+클릭: 가장 가까운 선택된 나무 하나만 해제
+  - Shift+드래그: 사각형 선택(추가) / Ctrl+Shift+드래그: 사각형 안 선택 해제
+  - L: 올가미 시작 → 클릭으로 꼭짓점 추가 → Enter 확정(선택 추가) / Backspace(안쪽 선택 해제) / Esc 취소
+  - A: 선택 전부 해제(+ V/B 범위 해제), I: 선택 반전
+  - Delete: 선택 → remove, U: 선택 → 유지 (remove 된 나무 되살리기), F: 선택 → auto_forest, G: 선택 → no_image (remove → no_image 도 가능), Ctrl+Z: 마지막 편집 취소 (최대 1000단계, 선택 변경은 대상 아님)
+  - clearSelectionAfterAction = true (기본): Delete/U/F/G 적용 후 선택 자동 해제 → 다음 올가미 선택과 합쳐지지 않음. C 키로 켜고 끔
+  - B: remove 상태이면서 InsideForest==Y(out\features_dino.csv) 인 나무를 선택에 추가. 범위 = 마지막 사각형/올가미 영역(A 로 해제), 없으면 코스 전체. 저품질 항공사진 영역의 삭제분을 골라 G 로 no_image 로 바꾸는 용도 (비닐하우스는 거의 임상도 밖)
+  - 한글 입력 상태에서 눌린 자모(ㅁ, ㅎ 등)는 2벌식 위치의 영문 키로 처리
   - 되살리기: 제외된 나무(빨강 X) 클릭/Shift+드래그/올가미로 선택 → U → 녹색. Ctrl+Z 로 취소, S 로 저장해야 파일에 반영
   - 검토: X: remove 된 나무만 표시/전체 토글(숨긴 나무는 선택 불가), N/P: 시작 시점 remove 목록을 순서대로 이동(중앙·줌 8, 그 나무만 선택, 원본 해상도 1536px 창을 GDAL 로 읽어 겹쳐 그림), 좌상단에 TreeID/수고/수관직경/현재 상태. 그 상태에서 U = 그 나무만 되살림
   - 선택 보조: V: 마지막 사각형/올가미 영역(A 로 해제, 없으면 화면 범위) 안의 유지 나무 중 수관 평균 HSV 가 밝고(V >= bright) 채도 낮은(S <= sat) 것을 선택에 추가만 함 (제외는 Delete). [ / ]: bright -/+5, { / }: sat -/+5 (기본 170 / 60), 좌상단 표시
@@ -44,13 +50,16 @@ TreeSpeciesIdentification.exe --experiment prepare <config> <course|all>
   - tree_info_excluded.csv 가 없으면 "제외 파일 없음 - edit 로 먼저 검토 권장" 경고만 하고 진행
   - features_dino.csv 에 그 코스 행이 없으면 export 생략 + "extract needed" (extract 는 실행 안 함), review 는 진행
   - 코스별 오류는 note 에 남기고 다음 코스 계속
-  - all: 마지막에 코스별 표 (total=tree_info 전체 / removed / forest(Y)=유지 나무 중 InsideForest==Y / export=trees.json 수) 를 콘솔과 out\prepare_summary.txt 에
+  - all: 마지막에 코스별 표 (total=tree_info 전체 / removed / no_image / forest(Y)=유지 나무 중 InsideForest==Y 이고 이미지 사용 가능 / export=trees.json classify 수) 를 콘솔과 out\prepare_summary.txt 에
 - 제외 파일: tree_info 옆 <course>_tree_info_excluded.csv (config 코스 항목 "tree_exclude" 로 경로 지정 가능)
-  - 헤더 TreeID,action,note. TreeID 는 tree_info 원본 ID(코스 오프셋 미적용). action = remove | auto_forest, note 는 사유용
+  - 헤더 TreeID,action,note. TreeID 는 tree_info 원본 ID(코스 오프셋 미적용). action = remove | auto_forest | no_image, note 는 사유용
   - 편집기 시작 시 읽어서 상태 복원. tree_info 에 없는 ID 행과 note 는 저장 시 보존
   - remove: TreeLoader::load 가 로드 단계에서 제외 (로그 "Excluded by tree_info_excluded: N") → 라벨링·특징·export·render 전부 적용
   - remove: FeatureExtractor::loadCSV 도 config 기준(TreeExclusion::registerConfig, 오프셋 적용 ID)으로 행 제외 → features_*.csv 재추출 불필요
   - auto_forest: TreeLoader 는 유지 (export 단계에서 따로 처리 예정)
+  - no_image: 나무는 맞지만 항공사진이 저품질(외부 소스 채움). TreeLoader 유지, TreeLabeler/FeatureExtractor::loadCSV 에서 imageUsable=false → categorize 가 train·predict 어디에도 안 넣음 (로그 "Excluded: image unusable (no_image) N"). export 는 위 auto_forest 항목으로 기록
+  - 로그: TreeLoader "tree_info_excluded rows: remove N, auto_forest N, no_image N", registerConfig 도 코스별 같은 형식
+  - review/prepare: no_image 는 유지로 집계, prepare 표에 no_image 열, forest(Y) 는 no_image 제외
 - 코스 설정: ..\..\Resources\courses_dataset.json (--config 없을 때 기본값, experiment eval/sweep/lidar 도 이 파일 사용)
   - Hermon(HermonCC) 은 enabled=false 유지 (prepare all 등 모든 작업에서 제외). 항공사진·tree_info·임상도 SHP 는 있으나 features_*.csv 에 없음 → 다시 포함하려면 extract 필요
 - 모델: ..\..\Resources\models\dinov2_vits14.onnx

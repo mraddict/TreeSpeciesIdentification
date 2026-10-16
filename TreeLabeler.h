@@ -427,6 +427,7 @@ public:
 		int savedPredict = 0;
 		int skipped = 0;
 		int rejected = 0;
+		int noImage = 0;
 
 		int total = (int)labeledTrees.size();
 		int progressStep = std::max(1, total / 20);
@@ -465,6 +466,13 @@ public:
 			// Check empty/nodata pixel ratio
 			lt.emptyRatio = computeEmptyRatio(crop, opts.emptyThreshold);
 			lt.imageUsable = (lt.emptyRatio <= opts.maxEmptyRatio);
+
+			// tree_info_excluded action == no_image: a real tree on an unusable photo (TreeExclusion::registerConfig, offset IDs)
+			if (TreeExclusion::isNoImage(lt.tp.treeId))
+			{
+				lt.imageUsable = false;
+				++noImage;
+			}
 
 			// Determine save path
 			std::string subDir;
@@ -530,7 +538,8 @@ public:
 
 		std::cout << "    Train images  : " << savedTrain << " (in " << createdDirs.size() << " species folders)\n";
 		std::cout << "    Predict images: " << savedPredict << "\n";
-		std::cout << "    Rejected (empty): " << rejected << " (>" << (int)(opts.maxEmptyRatio * 100) << "% empty)\n";
+		std::cout << "    Rejected (empty): " << rejected << " (>" << (int)(opts.maxEmptyRatio * 100) << "% empty, including no_image)\n";
+		std::cout << "    no_image (tree_info_excluded, image unusable): " << noImage << "\n";
 		std::cout << "    Skipped (OOB) : " << skipped << "\n";
 		std::cout << "    Output dir    : " << opts.outputDir << "/\n";
 	}

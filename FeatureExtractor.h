@@ -438,6 +438,7 @@ public:
 
 		int rowCount = 0;
 		int excludedRows = 0;
+		int noImageRows = 0;
 
 		while (std::getline(file, line))
 		{
@@ -498,6 +499,13 @@ public:
 				continue;
 			}
 
+			// no_image: kept in 'all' but the image is unusable -> categorize puts it in neither train nor predict
+			if (parseOk && TreeExclusion::isNoImage(tf.treeId))
+			{
+				tf.imageUsable = false;
+				++noImageRows;
+			}
+
 			if (parseOk)
 			{
 				result.all.push_back(std::move(tf));
@@ -509,7 +517,7 @@ public:
 
 		if (TreeExclusion::hasRegistry())
 		{
-			std::cout << "  Excluded by tree_info_excluded: " << excludedRows << "\n";
+			std::cout << "  Excluded by tree_info_excluded: " << excludedRows << " (remove), no_image rows: " << noImageRows << " (kept, image unusable)\n";
 		}
 
 		// Categorize
@@ -1185,9 +1193,18 @@ private:
 	{
 		int droppedMixed = 0;
 		int droppedNonForest = 0;
+		int droppedNoImage = 0;
 
 		for (auto& tf : result.all)
 		{
+			// image unusable (tree_info_excluded no_image): neither train nor predict
+			if (!tf.imageUsable)
+			{
+				++droppedNoImage;
+
+				continue;
+			}
+
 			if (tf.insideForest && !tf.speciesCode.empty() && !SpeciesCodes::isTrainable(tf.speciesCode))
 			{
 				if (SpeciesCodes::isMixed(tf.speciesCode))
@@ -1215,6 +1232,11 @@ private:
 		if (droppedMixed + droppedNonForest > 0)
 		{
 			std::cout << "  Excluded: mixed forest " << droppedMixed << ", non-forest " << droppedNonForest << "\n";
+		}
+
+		if (droppedNoImage > 0)
+		{
+			std::cout << "  Excluded: image unusable (no_image) " << droppedNoImage << "\n";
 		}
 	}
 

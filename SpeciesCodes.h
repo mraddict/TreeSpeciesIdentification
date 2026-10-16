@@ -24,6 +24,7 @@
 //    SpeciesCodes::fillColor(code)    -> lighter colour for polygon fills
 //    SpeciesCodes::has(code)          -> code is in the table
 //    SpeciesCodes::codesInGroup(g)    -> all codes of a group
+//    SpeciesCodes::asset(code)        -> export asset key (snake_case English name, placeholder)
 //
 //  Legacy free functions (hasSpeciesColor, getSpeciesColor, getPolygonFillColor,
 //  getSpeciesName) are kept in ForestLoader.h as thin wrappers over this class.
@@ -181,6 +182,33 @@ public:
 	static std::string groupName(const std::string& groupCode, bool ko = false)
 	{
 		return name(groupCode, ko);
+	}
+
+	// Asset key for export ("suggested"): English name in snake_case, e.g. "11" -> "pine", "77" -> "mixed_forest".
+	// Placeholder until the course asset catalogue is fixed; empty for unknown codes.
+	static std::string asset(const std::string& code)
+	{
+		std::string en = name(code, false);
+		std::string key;
+
+		for (char ch : en)
+		{
+			if (std::isalnum((unsigned char)ch))
+			{
+				key += (char)std::tolower((unsigned char)ch);
+			}
+			else if (!key.empty() && (key.back() != '_'))
+			{
+				key += '_';
+			}
+		}
+
+		while (!key.empty() && (key.back() == '_'))
+		{
+			key.pop_back();
+		}
+
+		return key;
 	}
 
 	static cv::Scalar color(const std::string& code)

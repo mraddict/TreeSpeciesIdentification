@@ -104,7 +104,8 @@ public:
 
 		// Manual corrections: TreeIDs with action == remove are dropped here
 		std::string exclusionPath = (excludePath == TreeExclusion::kNone) ? "" : TreeExclusion::resolvePath(csvPath, excludePath);
-		std::unordered_set<long long> removedIds = exclusionPath.empty() ? std::unordered_set<long long>() : TreeExclusion::removedIds(TreeExclusion::load(exclusionPath));
+		std::map<long long, TreeExclusion::Entry> exclusionEntries = exclusionPath.empty() ? std::map<long long, TreeExclusion::Entry>() : TreeExclusion::load(exclusionPath);
+		std::unordered_set<long long> removedIds = TreeExclusion::removedIds(exclusionEntries);
 		int excludedCount = 0;
 
 		std::string line;
@@ -163,6 +164,12 @@ public:
 		if (!removedIds.empty())
 		{
 			std::cout << "  Excluded by tree_info_excluded: " << excludedCount << " (" << exclusionPath << ")\n";
+		}
+
+		if (!exclusionEntries.empty())
+		{
+			// remove is dropped above; auto_forest / no_image stay in the tree list
+			std::cout << "  tree_info_excluded rows: " << TreeExclusion::countText(exclusionEntries) << " (auto_forest / no_image kept)\n";
 		}
 
 		for (auto& tp : data.tps)

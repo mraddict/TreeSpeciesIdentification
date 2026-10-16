@@ -8,12 +8,16 @@
 //    TreeID,action,note
 //    action = remove       : dropped by TreeLoader::load and FeatureExtractor::loadCSV
 //             auto_forest  : kept (handled later in export)
+//             no_image     : a real tree, but the aerial photo there is unusable (filled from another source).
+//                            Kept by TreeLoader; imageUsable = false in TreeLabeler / FeatureExtractor (neither train
+//                            nor predict); exported as mode "auto_forest" from the nearest forest-map polygon.
 //    TreeID is the tree_info TreeID (no course offset).
 // ----------------------------------------------------------------------------------------------------------------------------
 
 #include "CourseDataSetLoader.h"
 
 #include <map>
+#include <unordered_map>
 #include <unordered_set>
 
 class TreeExclusion
@@ -28,6 +32,7 @@ public:
 
 	static constexpr const char* kRemove = "remove";
 	static constexpr const char* kAutoForest = "auto_forest";
+	static constexpr const char* kNoImage = "no_image";
 	static constexpr const char* kNone = "<none>";			// TreeLoader::load: do not apply any file
 	static constexpr const char* kAutoNotePrefix = "auto_";	// note of rows written by an automatic filter (dropped by dropAutoRows)
 
@@ -146,13 +151,13 @@ public:
 		return dropped;
 	}
 
-	static std::unordered_set<long long> removedIds(const std::map<long long, Entry>& entries)
+	static std::unordered_set<long long> idsWithAction(const std::map<long long, Entry>& entries, const char* action)
 	{
 		std::unordered_set<long long> ids;
 
 		for (auto& kv : entries)
 		{
-			if (kv.second.action == kRemove)
+			if (kv.second.action == action)
 			{
 				ids.insert(kv.first);
 			}
@@ -161,7 +166,24 @@ public:
 		return ids;
 	}
 
-	// Registry for FeatureExtractor::loadCSV, keyed by TreeID + course offset
+	static std::unordered_set<long long> removedIds(const std::map<long long, Entry>& entries)
+	{
+		return idsWithAction(entries, kRemove);
+	}
+
+	static std::unordered_set<long long> noImageIds(const std::map<long long, Entry>& entries)
+	{
+		return idsWithAction(entries, kNoImage);
+	}
+
+	// "remove N, auto_forest N, no_image N"
+	static std::string countText(const std::map<long long, Entry>& entries)
+	{
+		return "remove " + std::to_string(idsWithAction(entries, kRemove).size()) + ", auto_forest " + std::to_string(idsWithAction(entries, kAutoForest).size())
+			+ ", no_image " + std::to_string(idsWithAction(entries, kNoImage).size());
+	}
+
+	// Registry for FeatureExtractor::loadCSV / TreeLabeler, keyed by TreeID + course offset -> action
 	static void registerConfig(const CourseDataSetConfig& cfg)
 	{
 		auto& reg = registry();
@@ -170,16 +192,16 @@ public:
 		for (auto& c : cfg.courses)
 		{
 			std::string path = resolvePath(c.treeInfoPath, c.treeExcludePath);
-			std::unordered_set<long long> removed = removedIds(load(path));
+			std::map<long long, Entry> entries = load(path);
 
-			for (auto id : removed)
+			for (auto& kv : entries)
 			{
-				reg.insert(c.treeIdOffset + id);
+				reg[c.treeIdOffset + kv.first] = kv.second.action;
 			}
 
-			if (!removed.empty())
+			if (!entries.empty())
 			{
-				std::cout << "  tree_info_excluded: " << c.courseName << " remove " << removed.size() << " (" << path << ")\n";
+				std::cout << "  tree_info_excluded: " << c.courseName << " " << countText(entries) << " (" << path << ")\n";
 			}
 		}
 	}
@@ -191,14 +213,26 @@ public:
 
 	static bool isRemoved(long long globalTreeId)
 	{
-		return registry().count(globalTreeId) > 0;
+		return hasAction(globalTreeId, kRemove);
+	}
+
+	static bool isNoImage(long long globalTreeId)
+	{
+		return hasAction(globalTreeId, kNoImage);
 	}
 
 private:
 
-	static std::unordered_set<long long>& registry()
+	static bool hasAction(long long globalTreeId, const char* action)
 	{
-		static std::unordered_set<long long> reg;
+		auto it = registry().find(globalTreeId);
+
+		return (it != registry().end()) && (it->second == action);
+	}
+
+	static std::unordered_map<long long, std::string>& registry()
+	{
+		static std::unordered_map<long long, std::string> reg;
 
 		return reg;
 	}

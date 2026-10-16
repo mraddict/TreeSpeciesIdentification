@@ -466,11 +466,139 @@ static const CourseDataSet& findCourse(const CourseDataSetConfig& cfg, const std
 	throw std::runtime_error("Course not found in config: " + courseName);
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------
+//  no_image trees in export: species from the nearest forest-map polygon with a species (groups C / D / E / M)
+//    confidence: inside the polygon 0.9, within 50 m 0.6, farther 0.3, no such polygon 0
+// ----------------------------------------------------------------------------------------------------------------------------
+
+static const double kNoImageNearDist = 50.0;
+static const double kNoImageConfInside = 0.9;
+static const double kNoImageConfNear = 0.6;
+static const double kNoImageConfFar = 0.3;
+
+class ForestSpeciesLookup
+{
+public:
+
+	// forest : loaded forest map (owned by the caller), points are given in EPSG pointEpsg
+	ForestSpeciesLookup(const ForestLayer& forest, int pointEpsg)
+	{
+		int forestEpsg = (forest.epsg > 0) ? forest.epsg : pointEpsg;
+
+		if (forestEpsg != pointEpsg)
+		{
+			ct_ = CoordTransformer::createTransform(pointEpsg, forestEpsg);
+
+			if (!ct_)
+			{
+				throw std::runtime_error("Failed to create transform EPSG:" + std::to_string(pointEpsg) + " -> EPSG:" + std::to_string(forestEpsg));
+			}
+		}
+
+		for (auto& ft : forest.features)
+		{
+			auto it = ft.attributes.find(SPECIES_CODE);
+
+			if (!ft.geometry || (it == ft.attributes.end()))
+			{
+				continue;
+			}
+
+			std::string code = TSICommon::trim(it->second);
+
+			if (!SpeciesCodes::isTrainable(code) && !SpeciesCodes::isMixed(code))
+			{
+				continue;
+			}
+
+			Candidate c;
+			c.geometry = ft.geometry;
+			c.code = code;
+			ft.geometry->getEnvelope(&c.env);
+
+			candidates_.push_back(c);
+		}
+	}
+
+	~ForestSpeciesLookup()
+	{
+		if (ct_)
+		{
+			OGRCoordinateTransformation::DestroyCT(ct_);
+		}
+	}
+
+	size_t polygonCount() const
+	{
+		return candidates_.size();
+	}
+
+	// false if there is no species polygon at all. dist = 0 inside the polygon.
+	bool nearest(double x, double y, std::string& code, double& dist) const
+	{
+		if (ct_)
+		{
+			ct_->Transform(1, &x, &y);
+		}
+
+		OGRPoint pt(x, y);
+
+		// growing search radius; the envelope distance is a lower bound of the polygon distance
+		for (double radius : { kNoImageNearDist, 500.0, 5000.0, std::numeric_limits<double>::max() })
+		{
+			double best = std::numeric_limits<double>::max();
+			const Candidate* bestC = nullptr;
+
+			for (auto& c : candidates_)
+			{
+				double dx = std::max({ c.env.MinX - x, 0.0, x - c.env.MaxX });
+				double dy = std::max({ c.env.MinY - y, 0.0, y - c.env.MaxY });
+
+				if ((dx > radius) || (dy > radius) || (std::hypot(dx, dy) > std::min(radius, best)))
+				{
+					continue;
+				}
+
+				double d = c.geometry->Distance(&pt);
+
+				if ((d >= 0.0) && (d < best))
+				{
+					best = d;
+					bestC = &c;
+				}
+			}
+
+			if (bestC && (best <= radius))
+			{
+				code = bestC->code;
+				dist = best;
+
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+private:
+
+	struct Candidate
+	{
+		OGRGeometry* geometry = nullptr;
+		OGREnvelope env;
+		std::string code;
+	};
+
+	std::vector<Candidate> candidates_;
+	OGRCoordinateTransformation* ct_ = nullptr;
+};
+
 // Per-course counts collected by prepare (-1 = not run)
 struct CourseRunStats
 {
 	int total = -1;					// tree_info rows (no exclusion applied)
 	int removed = -1;				// action == remove, present in tree_info
+	int noImage = -1;				// action == no_image, present in tree_info
 	int insideForest = -1;			// kept trees with InsideForest == Y
 	int noFeatureRow = -1;			// kept trees without a features_dino.csv row
 	int exported = -1;				// trees.json
@@ -499,8 +627,13 @@ static int exportCourse(const std::string& configPath, const std::string& outDir
 		std::cout << "  ! 'courseBoundary' is not set - trees with InsideForest == N are taken as the course interior\n";
 	}
 
-	// 1. Trees in EPSG:5179 (TreeID without course offset)
+	// 1. Trees in EPSG:5179 (TreeID without course offset). remove is dropped by TreeLoader; no_image is exported separately (step 5)
 	TreeData trees = TreeLoader::load(course->treeInfoPath, course->treeSrcEPSG, kExportEpsg, 0.0, 0.0, course->treeExcludePath);
+
+	std::map<long long, TreeExclusion::Entry> exclusion = TreeExclusion::load(TreeExclusion::resolvePath(course->treeInfoPath, course->treeExcludePath));
+	std::unordered_set<long long> noImageIds = TreeExclusion::noImageIds(exclusion);
+
+	std::cout << "  tree_info_excluded: " << TreeExclusion::countText(exclusion) << "\n";
 
 	// 2. Candidates: inside the boundary, or every tree (filtered by InsideForest in step 3)
 	std::vector<const TreePoint*> inside;
@@ -596,9 +729,17 @@ static int exportCourse(const std::string& configPath, const std::string& outDir
 
 	int written = 0;
 	int noEmbedding = 0;
+	int skippedNoImage = 0;
 
 	for (auto* tp : inside)
 	{
+		if (noImageIds.count(tp->treeId))
+		{
+			++skippedNoImage;			// written in step 5
+
+			continue;
+		}
+
 		auto it = embeddings.find(tp->treeId + course->treeIdOffset);
 
 		if (it == embeddings.end())
@@ -630,10 +771,79 @@ static int exportCourse(const std::string& configPath, const std::string& outDir
 		++written;
 	}
 
+	// 5. no_image trees (every one in tree_info, interior or not): mode auto_forest, species from the forest map
+	int noImageWritten = 0;
+	int noImageCount[4] = { 0, 0, 0, 0 };		// inside / within 50 m / farther / no species polygon
+
+	if (!noImageIds.empty())
+	{
+		ForestLayer forest = ForestLoader::loadMultiple(course->shpFiles, "", false);
+
+		{
+			ForestSpeciesLookup lookup(forest, kExportEpsg);
+
+			std::cout << "  no_image: forest map species polygons (C/D/E/M): " << lookup.polygonCount() << "\n";
+
+			for (auto& tp : trees.tps)
+			{
+				if (!noImageIds.count(tp.treeId))
+				{
+					continue;
+				}
+
+				std::string code;
+				double dist = -1.0;
+				double conf = 0.0;
+				int bucket = 3;
+
+				if (lookup.nearest(tp.x, tp.y, code, dist))
+				{
+					bucket = (dist <= 1e-9) ? 0 : (dist <= kNoImageNearDist) ? 1 : 2;
+					conf = (bucket == 0) ? kNoImageConfInside : (bucket == 1) ? kNoImageConfNear : kNoImageConfFar;
+				}
+
+				++noImageCount[bucket];
+
+				if (written + noImageWritten > 0)
+				{
+					ofs << ",\n";
+				}
+
+				ofs << "  {\"id\": " << tp.treeId
+					<< ", \"x\": " << std::setprecision(3) << tp.x
+					<< ", \"y\": " << tp.y
+					<< ", \"height\": " << std::setprecision(2) << tp.height
+					<< ", \"crownD\": " << tp.crownD
+					<< ", \"embedding\": null, \"mode\": \"auto_forest\"";
+
+				if (code.empty())
+				{
+					ofs << ", \"suggested\": null, \"source\": \"forest:none\"";
+				}
+				else
+				{
+					ofs << ", \"suggested\": \"" << SpeciesCodes::asset(code) << "\", \"source\": \"forest:" << code << "\"";
+				}
+
+				ofs << ", \"confidence\": " << std::setprecision(1) << conf << "}";
+
+				++noImageWritten;
+			}
+		}
+
+		ForestLoader::release(forest);
+	}
+
 	ofs << "\n]\n";
 	ofs.close();
 
-	std::cout << "  Written: " << written << " trees -> " << jsonPath << "\n";
+	std::cout << "  Written: " << (written + noImageWritten) << " trees -> " << jsonPath << " (classify " << written << ", no_image auto_forest " << noImageWritten << ")\n";
+
+	if (noImageWritten > 0)
+	{
+		std::cout << "  no_image confidence: inside polygon " << noImageCount[0] << " (" << kNoImageConfInside << "), <= " << kNoImageNearDist << " m " << noImageCount[1]
+			<< " (" << kNoImageConfNear << "), farther " << noImageCount[2] << " (" << kNoImageConfFar << "), no species polygon " << noImageCount[3] << " (0)\n";
+	}
 
 	if (useBoundary)
 	{
@@ -644,9 +854,15 @@ static int exportCourse(const std::string& configPath, const std::string& outDir
 		std::cout << "  Not exported (InsideForest == Y or no embedding): " << noEmbedding << "\n";
 	}
 
+	if (skippedNoImage > 0)
+	{
+		std::cout << "  (" << skippedNoImage << " interior no_image trees are written as auto_forest, not with embeddings)\n";
+	}
+
 	if (stats)
 	{
 		stats->exported = written;
+		stats->noImage = noImageWritten;
 	}
 
 	return 0;
@@ -1253,6 +1469,7 @@ static int reviewCourse(const std::string& configPath, const std::string& outDir
 	}
 
 	int autoForest = 0;
+	std::unordered_set<long long> noImageIds = TreeExclusion::noImageIds(entries);
 
 	for (auto& kv : entries)
 	{
@@ -1630,6 +1847,20 @@ static int reviewCourse(const std::string& configPath, const std::string& outDir
 	ss << "  feature CSV    : " << featPath << "\n";
 	ss << "  remove rows    : " << removedIds.size() << " (in tree_info " << removedInTreeInfo << ", not in tree_info " << (removedIds.size() - removedInTreeInfo) << ")\n";
 	ss << "  auto_forest    : " << autoForest << " (counted as kept)\n";
+
+	int noImageKept = 0;
+	int noImageForest = 0;
+
+	for (auto& t : trees)
+	{
+		if (!t.removed && noImageIds.count(t.tp.treeId))
+		{
+			++noImageKept;
+			noImageForest += (t.forest == 1) ? 1 : 0;
+		}
+	}
+
+	ss << "  no_image       : " << noImageKept << " (counted as kept; InsideForest Y " << noImageForest << ", image unusable -> not trained, exported as auto_forest)\n";
 	ss << "  removed / kept : " << nRemoved << " / " << nKept << "\n";
 
 	ss << "\n[Height (m)]\n" << reviewStatsLine("removed", hRemoved) << reviewStatsLine("kept", hKept);
@@ -1713,7 +1944,8 @@ static int reviewCourse(const std::string& configPath, const std::string& outDir
 	{
 		stats->total = (int)trees.size();
 		stats->removed = nRemoved;
-		stats->insideForest = forestCount[0][0];
+		stats->noImage = noImageKept;
+		stats->insideForest = forestCount[0][0] - noImageForest;		// trainable images only
 		stats->noFeatureRow = forestCount[0][2];
 		stats->hasExclusionFile = TSICommon::exists(exclusionPath);
 	}
@@ -1820,30 +2052,32 @@ int runPrepare(const std::string& configPath, const std::string& outDir, const s
 	// Summary table
 	std::ostringstream ss;
 	char buf[512];
-	int sum[4] = { 0, 0, 0, 0 };
+	int sum[5] = { 0, 0, 0, 0, 0 };
 
 	ss << "=== Prepare summary: " << configPath << " ===\n";
-	sprintf_s(buf, "  %-10s %8s %8s %10s %8s  %s\n", "course", "total", "removed", "forest(Y)", "export", "note");
+	sprintf_s(buf, "  %-10s %8s %8s %9s %10s %8s  %s\n", "course", "total", "removed", "no_image", "forest(Y)", "export", "note");
 	ss << buf;
 
 	for (auto& r : rows)
 	{
-		sprintf_s(buf, "  %-10s %8s %8s %10s %8s  %s\n", r.course.c_str(), prepareCell(r.stats.total).c_str(), prepareCell(r.stats.removed).c_str(),
-			prepareCell(r.stats.insideForest).c_str(), prepareCell(r.stats.exported).c_str(), r.note.c_str());
+		sprintf_s(buf, "  %-10s %8s %8s %9s %10s %8s  %s\n", r.course.c_str(), prepareCell(r.stats.total).c_str(), prepareCell(r.stats.removed).c_str(),
+			prepareCell(r.stats.noImage).c_str(), prepareCell(r.stats.insideForest).c_str(), prepareCell(r.stats.exported).c_str(), r.note.c_str());
 		ss << buf;
 
 		sum[0] += std::max(0, r.stats.total);
 		sum[1] += std::max(0, r.stats.removed);
-		sum[2] += std::max(0, r.stats.insideForest);
-		sum[3] += std::max(0, r.stats.exported);
+		sum[2] += std::max(0, r.stats.noImage);
+		sum[3] += std::max(0, r.stats.insideForest);
+		sum[4] += std::max(0, r.stats.exported);
 	}
 
-	sprintf_s(buf, "  %-10s %8d %8d %10d %8d\n", "sum", sum[0], sum[1], sum[2], sum[3]);
+	sprintf_s(buf, "  %-10s %8d %8d %9d %10d %8d\n", "sum", sum[0], sum[1], sum[2], sum[3], sum[4]);
 	ss << buf;
 	ss << "  total     : tree_info rows (no exclusion)\n";
 	ss << "  removed   : tree_info_excluded.csv action == remove\n";
-	ss << "  forest(Y) : kept trees with InsideForest == Y (features_dino.csv)\n";
-	ss << "  export    : trees.json (course interior = InsideForest == N, or courseBoundary)\n";
+	ss << "  no_image  : action == no_image (kept, image unusable; in trees.json as mode auto_forest)\n";
+	ss << "  forest(Y) : kept trees with InsideForest == Y and a usable image (features_dino.csv)\n";
+	ss << "  export    : trees.json classify entries (course interior = InsideForest == N, or courseBoundary)\n";
 
 	std::string text = ss.str();
 	std::string path = TSICommon::join(outDir, "prepare_summary.txt");
@@ -1876,6 +2110,7 @@ int runPrepare(const std::string& configPath, const std::string& outDir, const s
 // ----------------------------------------------------------------------------------------------------------------------------
 
 static const double kEditImageScale = 0.25;
+static const char* kEditOutDir = "out";				// features_dino.csv location (edit takes no out_dir)
 
 int runEdit(const std::string& configPath, const std::string& courseName)
 {
@@ -1915,7 +2150,21 @@ int runEdit(const std::string& configPath, const std::string& courseName)
 		OGRCoordinateTransformation::DestroyCT(ct);
 	}
 
-	TreeEditor::run(aerial, trees.tps, exclusionPath, "TSI Tree Editor - " + courseName, course.aerialImgPath);
+	// InsideForest per tree (TreeID without offset) for B (select removed trees inside the forest map)
+	std::unordered_map<long long, bool> insideForest;
+	std::string featPath = TSICommon::join(kEditOutDir, "features_dino.csv");
+
+	if (TSICommon::exists(featPath))
+	{
+		for (auto& kv : loadFeatureRows(featPath, courseName))
+		{
+			insideForest[kv.first - course.treeIdOffset] = kv.second.insideForest;
+		}
+	}
+
+	std::cout << "  InsideForest flags: " << insideForest.size() << " (" << featPath << ")\n";
+
+	TreeEditor::run(aerial, trees.tps, exclusionPath, "TSI Tree Editor - " + courseName, course.aerialImgPath, &insideForest);
 
 	return 0;
 }
